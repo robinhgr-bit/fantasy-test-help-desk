@@ -1,0 +1,72 @@
+.leaguePage { min-height: 100dvh; padding-bottom: 110px; color: #27002c; background: #f4f2f5; direction: rtl; }
+.leaguePage.embedded { min-height: auto; padding-bottom: 0; background: transparent; }
+.leaguePage > header { padding: calc(24px + env(safe-area-inset-top, 0px)) 16px 28px; color: #fff; background: linear-gradient(125deg, #37003c, #6d0b73); }
+.leaguePage > header small { color: #00ff87; font-weight: 900; letter-spacing: 2px; }
+.leaguePage > header h1 { margin: 5px 0; font-size: 27px; }
+.leaguePage > header p { margin: 0; color: #dbcfe0; font-size: 11px; }
+
+.leagueSportSwitch { margin: -17px 12px 12px; padding: 4px; display: grid; grid-template-columns: 1fr 1fr; border-radius: 10px; background: #fff; box-shadow: 0 6px 20px #37003c22; }
+.leagueSportSwitch button { min-height: 42px; border: 0; border-radius: 7px; color: #6f6371; background: transparent; font: inherit; font-size: 12px; font-weight: 900; }
+.leagueSportSwitch button.active { color: #37003c; background: #00ff87; }
+
+.leagueBlock { margin: 10px 12px; padding: 12px; overflow: hidden; border-radius: 10px; background: #fff; box-shadow: 0 4px 15px #37003c12; }
+.leagueBlock > h2 { margin: 2px 0 10px; font-size: 16px; }
+
+/* League table — bigger type, a team badge next to every name, more
+   breathing room per row so it reads clearly instead of a cramped grid.
+   The numeric row (.leagueTableMain) is always a single, fixed-height line
+   — team names truncate instead of wrapping — so won/drawn/lost read as
+   real columns instead of fighting the stat numbers for vertical space. */
+.leagueTableScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.leagueTableInner { min-width: 460px; }
+.leagueTableHead, .leagueTableMain { display: grid; grid-template-columns: 24px minmax(96px, 1fr) 26px 26px 26px 26px 30px 30px 34px 40px; align-items: center; text-align: center; font-size: 11px; }
+.leagueTableMain { height: 44px; }
+/* The header can't use a fixed height + nowrap like the data rows: any
+   label wider than its column (long Arabic phrases especially) would just
+   overflow into the next cell instead of wrapping, reading as "overlapping"
+   text. Letting it wrap onto two lines inside a min-height row fixes that
+   regardless of how a given sport's labels happen to size. */
+.leagueTableHead { min-height: 40px; padding-block: 4px; color: #8a7d8d; font-weight: 800; background: #f3eff4; white-space: normal; line-height: 1.2; word-break: break-word; }
+.leagueTableRow { padding: 6px 0; border-bottom: 1px solid #eee8ef; }
+.leagueTableMain > strong { display: flex; align-items: center; gap: 6px; min-width: 0; text-align: right; font-size: 12px; }
+.leagueTableMain > strong .teamNameText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leagueTableMain > b:last-child { color: #37003c; font-size: 14px; }
+.leagueTableMain .diffPositive { color: #0a8f4c; font-weight: 800; }
+.leagueTableMain .diffNegative { color: #c81b4a; font-weight: 800; }
+
+/* Volleyball standings: played / match W-L / sets for-against / set diff /
+   small points for-against / point diff / league points (3 for a 2-0,
+   2-1 for a 2-1). A lot of columns, so this one leans on the horizontal
+   scroll rather than squeezing everything into one screen width. */
+.leagueTableInnerVb { min-width: 560px; }
+.vbHead, .vbMain { grid-template-columns: 22px minmax(84px, 1fr) 26px 26px 30px 24px 28px 30px 40px 46px 34px 34px; }
+
+/* Shared team badge (logo or initial) used in both the table and fixtures. */
+.teamBadge { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; color: #fff; background: #7148ff; font-size: 14px; font-weight: 900; }
+.teamBadge img { width: 100%; height: 100%; object-fit: cover; }
+.teamBadge i { font-style: normal; }
+
+/* One header per calendar day so today's matches and the next matchday's
+   are visibly separate groups instead of one undifferentiated list. */
+.leagueDayDivider { display: flex; align-items: center; gap: 8px; margin: 16px 2px 6px; }
+.leagueDayDivider:first-child { margin-top: 2px; }
+.leagueDayDivider::before, .leagueDayDivider::after { content: ''; flex: 1; height: 1px; background: #e6dee8; }
+.leagueDayDivider span { padding: 4px 10px; border-radius: 999px; color: #fff; background: #37003c; font-size: 10px; font-weight: 800; white-space: nowrap; }
+
+/* Fixture cards — larger, clearer match details. */
+.leagueFixture { margin-top: 10px; overflow: hidden; border: 1px solid #e6dee8; border-radius: 12px; background: #fff; box-shadow: 0 2px 10px rgba(55, 0, 60, .05); }
+.leagueFixture > div { padding: 9px 12px; display: flex; justify-content: space-between; align-items: center; color: #6f6277; background: #f6f3f7; font-size: 11px; font-weight: 700; }
+.leagueFixture > div b { color: #37003c; }
+.leagueFixture.live { border-color: #00c86f; box-shadow: 0 0 0 2px #00ff8722; }
+.leagueFixture.live > div b { color: #008849; }
+.leagueFixture section { padding: 16px 10px; display: grid; grid-template-columns: 1fr 78px 1fr; align-items: center; gap: 6px; }
+.leagueFixture .fixtureTeam { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
+.leagueFixture .fixtureTeam .teamBadge { width: 56px; height: 56px; font-size: 20px; }
+.leagueFixture .fixtureTeam strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #37003c; font-size: 12px; font-weight: 800; text-align: center; }
+.leagueFixture .fixtureScore { text-align: center; color: #37003c; font-size: 20px; font-weight: 950; }
+.leagueFixture .fixtureSets { display: flex; justify-content: center; gap: 5px; margin-top: 3px; color: #837686; font-size: 8px; font-weight: 700; }
+.leagueFixture footer { padding: 6px; text-align: center; color: #958999; background: #faf8fa; font-size: 9px; }
+
+.leagueEmpty { padding: 30px; text-align: center; color: #8b7e8e; font-size: 11px; }
+
+@media (min-width: 700px) { .leaguePage { max-width: 700px; margin: auto; } }

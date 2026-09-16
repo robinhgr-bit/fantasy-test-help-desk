@@ -1,0 +1,177 @@
+/* Volleyball Fantasy lives inside the same Fagalla Fantasy design system
+   as Football: light purple theme, white cards, FPL-style accents. */
+.vb-page { min-height: 100dvh; padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)); color: #37003c; background: #f7f7f7; direction: ltr; }
+.vb-screen { max-width: 620px; margin: 0 auto; padding: 10px 12px 22px; animation: vb-in .25s ease; }
+.vb-news-screen { max-width: none !important; padding: 0 !important; }
+
+/* Section nav — same language as the Football local tabs bar. */
+.vb-section-nav { position: sticky; top: 0; z-index: 90; display: flex; align-items: center; gap: 2px; min-height: 46px; padding: 0 8px; background: #37003c; box-shadow: 0 4px 14px rgba(55,0,60,.18); }
+.vb-section-nav button { flex: 1; min-width: 0; min-height: 40px; padding: 0 5px; border: 0; color: rgba(255,255,255,.72); background: transparent; font: inherit; font-size: 10px; font-weight: 900; cursor: pointer; }
+.vb-section-nav button.active { color: #fff; background: rgba(0,0,0,.16); box-shadow: inset 0 -2px #00ff87; }
+
+/* Screen heading — mirrors .fpl-screen-heading. */
+.vb-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 12px; padding: 13px 14px; overflow: hidden; border-radius: 4px; color: #fff; background: linear-gradient(115deg, #05f0ff 0 22%, #37003c 22.2%); }
+.vb-heading h1 { margin: 0; color: #fff; font-size: 20px; }
+.vb-heading span { color: #00ff87; font-size: 9px; font-weight: 900; letter-spacing: .5px; }
+
+.vb-title { display: flex; align-items: center; justify-content: space-between; margin: 16px 2px 8px; }
+.vb-title h2 { margin: 0; color: #37003c; font-size: 15px; }
+.vb-title h2 i { width: 8px; height: 8px; margin-inline-end: 6px; display: inline-block; border-radius: 50%; background: #e90052; }
+.vb-title span { color: #837686; font-size: 9px; font-weight: 800; }
+
+.vb-match-scroll { display: flex; gap: 9px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; }
+.vb-match-scroll::-webkit-scrollbar { display: none; }
+.vb-match-card { flex: 0 0 220px; overflow: hidden; border: 1px solid #e5e0e6; border-radius: 4px; background: #fff; box-shadow: 0 2px 8px rgba(55,0,60,.06); }
+.vb-match-card > div { padding: 7px 10px; display: flex; justify-content: space-between; align-items: center; background: #f6f3f7; }
+.vb-match-card > div span { padding: 2px 7px; border: 1px solid #d8cddd; border-radius: 999px; color: #837686; font-size: 8px; font-weight: 900; }
+.vb-match-card > div span.live { border-color: #00c86f; color: #fff; background: #00c86f; }
+.vb-match-card > div small { color: #837686; font-size: 8px; }
+.vb-match-card section { padding: 14px 10px; display: grid; grid-template-columns: 1fr 52px 1fr; align-items: center; gap: 5px; }
+.vb-match-card section strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #37003c; font-size: 11px; }
+.vb-match-card section strong i { margin-inline-end: 5px; font-style: normal; color: #e90052; font-weight: 900; }
+.vb-match-card section strong:last-child { text-align: right; }
+.vb-match-card section b { text-align: center; color: #37003c; font-size: 12px; }
+
+.vb-empty { padding: 16px; border: 1px dashed #d8cddd; border-radius: 4px; color: #837686; background: #fff; text-align: center; font-size: 10px; font-weight: 800; }
+
+.vb-actions { margin-top: 16px; }
+
+/* Team screen. */
+.vb-team-values { margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vb-team-values span { padding: 10px; border: 1px solid #00c86f; border-radius: 4px; color: #003d20; background: #e7fff5; text-align: center; font-size: 10px; font-weight: 800; }
+.vb-team-values b { display: block; margin-top: 2px; font-size: 16px; }
+
+/* Volleyball court — modelled on a real indoor court: navy out-of-bounds
+   margin with serve-line ticks, a wood-toned playing surface, a meshed net
+   with antennas at the top, and the 3-2 rotation grid (zones 4-3-2 front,
+   5-6-1 back) underneath it. */
+.vb-court { position: relative; max-width: 480px; margin: 0 auto 14px; padding: 10px clamp(14px, 5vw, 24px); border-radius: 16px; background: #0e2c4d; box-shadow: 0 2px 10px rgba(55,0,60,.08); }
+.vb-court::before, .vb-court::after { content: ''; position: absolute; top: 10px; bottom: 10px; width: 8px; background-image: repeating-linear-gradient(180deg, rgba(255,255,255,.6) 0 3px, transparent 3px 15px); }
+.vb-court::before { left: 5px; }
+.vb-court::after { right: 5px; }
+
+/* Wood floor: plank seams (repeating stripes) + a subtle grain layer + a
+   warm vignette, layered instead of one flat gradient, so it reads as an
+   actual indoor court surface rather than a solid tan fill. */
+.vb-court-floor {
+  position: relative; overflow: hidden; border: 3px solid #fff; border-radius: 6px;
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 1px, transparent 1px 76px),
+    repeating-linear-gradient(90deg, #d9a262 0 2px, #e2b077 2px 78px),
+    radial-gradient(120% 90% at 50% 0%, #f0c48e 0%, #dfa669 60%, #c98f52 100%);
+  box-shadow: inset 0 0 0 1px rgba(55,0,60,.08), inset 0 30px 50px rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.22);
+}
+
+.vb-net { position: relative; height: 14px; margin: 0; background-image: repeating-linear-gradient(90deg, #fff 0 1.5px, transparent 1.5px 9px), repeating-linear-gradient(180deg, #fff 0 1.5px, transparent 1.5px 9px); background-color: rgba(255,255,255,.14); border-top: 3px solid #fff; border-bottom: 3px solid #fff; }
+.vb-net::before, .vb-net::after { content: ''; position: absolute; top: -5px; bottom: -5px; width: 5px; border-radius: 2px; background: repeating-linear-gradient(180deg, #e90052 0 5px, #fff 5px 10px); }
+.vb-net::before { left: 2%; }
+.vb-net::after { right: 2%; }
+
+.vb-six { position: relative; z-index: 3; padding: 18px 8px 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, 1fr); align-items: stretch; gap: 18px 6px; }
+.vb-six::before { content: ''; position: absolute; left: 4%; right: 4%; top: 50%; height: 2px; background: rgba(255,255,255,.65); box-shadow: 0 1px 2px rgba(0,0,0,.15); pointer-events: none; }
+
+.vb-slot { position: relative; min-width: 0; }
+/* .vb-slot-btn (not a bare `button` type selector) — the captain/vice/info
+   badges are also <button> elements and direct siblings under .vb-slot, and
+   a bare ".vb-slot > button" is specific enough to beat ".vb-badge" and
+   silently stretch them to fill the slot. Scoping to a dedicated class on
+   just the main button is what actually keeps the two apart. */
+.vb-slot > .vb-slot-btn { width: 100%; min-height: 86px; padding: 6px 2px 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; border: 0; border-radius: 4px; background: transparent; font: inherit; cursor: pointer; }
+
+/* On-pitch player: an FPL-style dark pill for name/subtitle sits under a
+   real jersey icon instead of a plain card background. */
+.vb-photo-wrap { position: relative; display: inline-flex; filter: drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
+.vb-jersey { display: block; }
+.vb-photo-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.vb-photo-empty { width: 40px; height: 40px; display: grid; place-items: center; border: 2px dashed rgba(255,255,255,.75); border-radius: 50%; background: rgba(255,255,255,.15); color: #fff; font-size: 20px; font-weight: 900; }
+.vb-bench .vb-photo-empty, .vb-bench .vb-photo-wrap { filter: none; }
+.vb-bench .vb-photo-empty { border-color: #cec2d2; background: rgba(55,0,60,.05); color: #837686; }
+.vb-zone { position: absolute; top: -4px; right: -6px; width: 17px; height: 17px; display: grid; place-items: center; border: 1.5px solid #fff; border-radius: 50%; color: #37003c; background: #00ff87; font-size: 9px; font-weight: 900; line-height: 1; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+
+.vb-slot-tag { max-width: 100%; padding: 3px 7px 4px; border-radius: 5px; background: rgba(20, 6, 28, .88); box-shadow: 0 2px 5px rgba(0,0,0,.3); }
+.vb-slot-tag strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: 10px; font-weight: 800; }
+.vb-slot-tag small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #00ff87; font-size: 8px; font-weight: 700; }
+.vb-slot-tag-empty { background: rgba(20,6,28,.55); }
+.vb-slot-tag-empty strong { color: rgba(255,255,255,.85); font-weight: 700; }
+.vb-bench .vb-slot-tag-empty strong { color: #837686; }
+
+.vb-badge { position: absolute; top: -4px; width: 19px; height: 19px; padding: 0; display: grid; place-items: center; border: 1.5px solid #fff; border-radius: 50%; color: #fff; background: #37003c; font-size: 8px; font-weight: 900; cursor: pointer; line-height: 1; }
+.vb-slot .vb-badge.captain { left: 4px; }
+.vb-slot .vb-badge.vice { right: 4px; }
+.vb-badge.active.captain { background: #e90052; }
+.vb-badge.active.vice { color: #37003c; background: #fff; }
+.vb-slot .vb-badge.info { top: auto; bottom: -4px; left: 50%; transform: translateX(-50%); font-style: italic; background: #7148ff; }
+
+/* Player detail sheet — next-5-fixtures view, opened from a squad slot. */
+.vb-player-detail { display: flex; align-items: center; gap: 10px; padding: 14px; border-bottom: 1px solid #eee9ef; }
+.vb-player-detail strong { display: block; color: #37003c; font-size: 13px; }
+.vb-player-detail small { display: block; margin-top: 2px; color: #837686; font-size: 10px; font-weight: 800; }
+.vb-fixture-list { padding-bottom: 6px; }
+.vb-fixture-row { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 8px; min-height: 46px; padding: 8px 14px; border-bottom: 1px solid #eee9ef; color: #37003c; font-size: 11px; }
+.vb-fixture-row:last-child { border-bottom: 0; }
+.vb-fixture-row b { color: #837686; font-size: 9px; font-weight: 900; }
+.vb-fixture-row small { color: #837686; font-size: 9px; }
+
+.vb-bench { margin-bottom: 12px; padding: 10px; border: 1px solid #e5e0e6; border-radius: 4px; background: #fff; }
+/* Off the pitch, bench slots get their own light card again (the transparent,
+   jersey-only look above is specifically for standing on the wood floor). */
+.vb-bench .vb-slot > .vb-slot-btn { padding-top: 8px; border: 1px solid #e5e0e6; border-radius: 6px; background: rgba(250,248,251,.9); box-shadow: 0 1px 4px rgba(55,0,60,.08); }
+.vb-bench .vb-slot-tag { background: transparent; box-shadow: none; padding: 0; }
+.vb-bench .vb-slot-tag strong { color: #37003c; }
+.vb-bench .vb-slot-tag small { color: #837686; }
+.vb-bench h2 { margin: 0 0 8px; color: #37003c; font-size: 12px; }
+.vb-bench > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+
+.vb-team-buttons { display: flex; gap: 8px; }
+.vb-team-buttons button { flex: 1; min-height: 42px; border: 1px solid #37003c; border-radius: 999px; color: #37003c; background: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+.vb-team-buttons button:last-child { color: #fff; background: #37003c; }
+
+/* League. */
+.vb-league { margin-bottom: 12px; }
+.vb-league-rows { overflow: hidden; }
+.vb-rank { display: grid; grid-template-columns: 36px 1fr 60px 40px; align-items: center; gap: 6px; min-height: 48px; padding: 6px 14px; border-bottom: 1px solid #eee9ef; color: #37003c; font-size: 12px; }
+.vb-rank:last-child { border-bottom: 0; }
+.vb-rank.mine { background: #e7fff5; box-shadow: inset 4px 0 #00c86f; }
+.vb-rank b { text-align: center; }
+.vb-rank strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vb-rank span { text-align: center; font-weight: 900; }
+.vb-rank i { text-align: center; color: #837686; font-style: normal; font-size: 9px; }
+
+.vb-highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.vb-highlights > div { padding: 12px 6px; border: 1px solid #e5e0e6; border-radius: 4px; background: #fff; text-align: center; }
+.vb-highlights small { display: block; color: #837686; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.vb-highlights .vb-photo { width: 40px; height: 40px; margin: 8px auto; }
+.vb-highlights strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #37003c; font-size: 10px; }
+.vb-highlights b { display: block; margin-top: 2px; color: #e90052; font-size: 10px; }
+
+/* More. */
+.vb-rules { overflow: hidden; border: 1px solid #e5e0e6; border-radius: 4px; background: #fff; }
+.vb-rules h2 { margin: 0; padding: 12px 14px; color: #fff; background: #37003c; font-size: 13px; }
+.vb-rules > div { min-height: 40px; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee9ef; color: #37003c; font-size: 11px; }
+.vb-rules > div b { color: #00b86a; font-weight: 900; }
+.vb-rules > div b.minus { color: #e90052; }
+
+.vb-exclusive { margin: 14px 0; padding: 14px; border: 1px solid #37003c; border-radius: 999px; color: #fff; background: linear-gradient(100deg, #37003c, #5f1d67); text-align: center; font-size: 12px; font-weight: 900; }
+.vb-exclusive small { display: block; margin-top: 3px; color: #00ff87; font-size: 9px; }
+
+/* Player picker sheet — mirrors .fpl-manager-sheet. */
+.vb-picker { position: fixed; z-index: 2000; inset: 0; display: flex; align-items: flex-end; justify-content: center; background: rgba(24,0,28,.72); }
+.vb-picker > div { width: min(680px, 100%); max-height: calc(100dvh - 32px); overflow: auto; padding-bottom: 12px; border-radius: 12px 12px 0 0; background: #fff; box-shadow: 0 20px 70px rgba(0,0,0,.3); }
+.vb-picker header { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; padding: 14px 17px; color: #fff; background: #37003c; }
+.vb-picker header h2 { margin: 0; color: #fff; font-size: 18px; }
+.vb-picker header button { padding: 6px 12px; border: 1px solid rgba(255,255,255,.5); border-radius: 3px; color: #fff; background: transparent; font: inherit; font-size: 18px; cursor: pointer; line-height: 1; }
+.vb-picker > div > button { width: 100%; min-height: 62px; padding: 8px 14px; display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px; border: 0; border-bottom: 1px solid #eee9ef; color: #37003c; background: #fff; text-align: left; font: inherit; cursor: pointer; }
+.vb-picker > div > button:last-child { border-bottom: 0; }
+.vb-picker > div > button:disabled { opacity: .35; }
+.vb-picker strong { font-size: 12px; }
+.vb-picker strong small { display: block; margin-top: 3px; color: #837686; font-size: 8px; }
+.vb-picker .vb-photo { width: 40px; height: 40px; }
+.vb-picker > div > button > b { color: #e90052; font-size: 12px; }
+
+/* Loading / error state. */
+.vb-state { min-height: 50vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 30px; color: #6f6272; text-align: center; background: #f7f7f7; }
+.vb-state strong { color: #37003c; font-size: 16px; }
+.vb-state small { font-size: 11px; }
+.vb-state button { padding: 9px 18px; border: 0; border-radius: 3px; color: #fff; background: #37003c; font: inherit; font-weight: 800; cursor: pointer; }
+
+@keyframes vb-in { from { opacity: 0; transform: translateY(5px); } }

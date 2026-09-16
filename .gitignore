@@ -1,0 +1,10 @@
+node_modules
+dist
+.vite
+.env
+.env.*
+*.log
+
+# Stale duplicate copy left over inside the project root — not the active
+# codebase (that's the top-level src/), excluded so it isn't committed.
+/fantasyfagalla/
