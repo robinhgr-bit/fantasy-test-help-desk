@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useUI } from '../../context/UIContext';
 import {
-  sbGetState, sbSetState, sbGetStats, sbGetUsers, sbGetPlayers, sbGetAccount, sbGetMatches,
-  sbSetStatsForGW, sbSyncLeaderboard, sbUpdateAccountField,
+  sbGetState, sbSetState, sbGetStats, sbGetPlayers, sbSetPlayers, sbGetAllAccountsFull, sbBulkUpdateAccounts, sbGetMatches,
+  sbSetStatsForGW, sbSyncLeaderboard,
 } from '../../lib/db';
-import { APPEARANCE_POINTS, emptyPlayerStat, migrateTeam, defaultTeam, calcTeamPointsForGW, rollTeamToNextGameweek, gwPlayerPoints, calcPlayerPoints, totalPlayerPoints, SCORING } from '../../lib/scoring';
+import { APPEARANCE_POINTS, emptyPlayerStat, migrateTeam, defaultTeam, calcTeamPointsForGW, rollTeamToNextGameweek, gwPlayerPoints, calcPlayerPoints, totalPlayerPoints, applyPriceChange, SCORING } from '../../lib/scoring';
 import { getTeamMatchOptions, guessCurrentMatchId } from '../../lib/scheduleGenerator';
 
 export default function GameweekTab() {
@@ -15,6 +15,7 @@ export default function GameweekTab() {
   const [search, setSearch] = useState('');
   const [statModal, setStatModal] = useState(null); // player being edited
   const [matches, setMatches] = useState([]);
+  const [lastPriceUpdate, setLastPriceUpdate] = useState(null); // { ok, count, gw } — stays visible after the toast fades, so a missed price update is never silent again
   useEffect(() => { sbGetMatches().then(setMatches).catch((e) => console.error('load matches failed', e)); }, []);
 
   const toggleLock = async () => {
@@ -55,38 +56,71 @@ export default function GameweekTab() {
   const finalizeGW = async () => {
     if (!(await openConfirm('هيتم حساب بوينتس الجيم ويك ده لكل اللاعبين وبعدين هيبدأ جيم ويك جديد. متأكد؟'))) return;
     setBusy('finalize');
-    let freshState, freshUsers, freshPlayers, freshStats;
+    let freshState, accountRows, freshPlayers, freshStats;
     try {
-      [freshState, freshUsers, freshPlayers, freshStats] = await Promise.all([sbGetState(), sbGetUsers(), sbGetPlayers(), sbGetStats()]);
+      [freshState, accountRows, freshPlayers, freshStats] = await Promise.all([sbGetState(), sbGetAllAccountsFull(), sbGetPlayers(), sbGetStats()]);
     } catch (e) {
       console.error('finalize refresh failed', e);
       showToast('مقدرتش أجيب آخر البيانات، جرب تاني', 'error');
       setBusy(null); return;
     }
-    if (!freshUsers.length) { showToast('مفيش لاعبين متسجلين لسه', 'error'); setBusy(null); return; }
+    if (!accountRows.length) { showToast('مفيش لاعبين متسجلين لسه', 'error'); setBusy(null); return; }
+    const freshUsers = accountRows.map((r) => r.username);
 
     const gwNum = freshState.gw;
     const nextGw = gwNum + 1;
     const newTotals = {};
     try {
-      for (const u of freshUsers) {
-        const teamRow = await sbGetAccount(u, 'team');
-        const team = migrateTeam((teamRow && teamRow.team) || defaultTeam());
+      // One combined read above + one bulk upsert here, instead of 2 requests
+      // per manager (fetch team, fetch points, save points, save team) — the
+      // part of finalize that used to scale linearly with league size.
+      const updatedAccounts = accountRows.map((row) => {
+        const team = migrateTeam(row.team || defaultTeam());
         const pts = calcTeamPointsForGW(freshPlayers, freshStats, team, gwNum);
-        const pointsRow = await sbGetAccount(u, 'points');
-        const pointsLog = (pointsRow && pointsRow.points) || {};
+        const pointsLog = { ...(row.points || {}) };
         pointsLog['gw' + gwNum] = pts;
-        await sbUpdateAccountField(u, 'points', pointsLog);
-        await sbUpdateAccountField(u, 'team', rollTeamToNextGameweek(team, gwNum));
-        newTotals[u] = Object.values(pointsLog).reduce((a, b) => a + (Number(b) || 0), 0);
-      }
+        newTotals[row.username] = Object.values(pointsLog).reduce((a, b) => a + (Number(b) || 0), 0);
+        return { username: row.username, password_hash: row.password_hash, team: rollTeamToNextGameweek(team, gwNum), points: pointsLog };
+      });
+      await sbBulkUpdateAccounts(updatedAccounts);
+    } catch (e) {
+      console.error('finalize failed', e);
+      showToast('في مشكلة وإحنا بنحسب النقط — مفيش حاجة اتغيرت', 'error');
+      setBusy(null); return;
+    }
+
+    // Market price movement: every player's own GW points move their live
+    // price up/down (never their host-set initial price), whether or not
+    // anyone owns them. Isolated in its own try/catch — a pricing failure
+    // (e.g. the initial_price migration not having been run yet) must not
+    // undo the points that were just saved above, and must not block the
+    // gameweek from advancing below.
+    let pricingOk = true;
+    let pricingChangedCount = 0;
+    try {
+      const gwStatsForPricing = freshStats['gw' + gwNum] || {};
+      const repricedPlayers = freshPlayers.map((p) => {
+        const nextPrice = applyPriceChange(p.price, calcPlayerPoints(p.id, gwStatsForPricing));
+        if (nextPrice !== p.price) pricingChangedCount += 1;
+        return { ...p, price: nextPrice };
+      });
+      await sbSetPlayers(repricedPlayers);
+      setPlayers(repricedPlayers);
+    } catch (e) {
+      pricingOk = false;
+      console.error('gw price update failed', e);
+      showToast('البوينتس اتسجلت، بس أسعار اللاعبين مقدرتش تتحدث (' + String(e.message || e).slice(0, 90) + ') — شغّل ملف supabase-player-price-upgrade.sql', 'error');
+    }
+    setLastPriceUpdate({ ok: pricingOk, count: pricingChangedCount, gw: gwNum });
+
+    try {
       const zeroed = {};
       freshPlayers.forEach((p) => { zeroed[p.id] = emptyPlayerStat(); });
       await sbSetStatsForGW('gw' + nextGw, zeroed);
       await sbSetState({ gw: nextGw, locked: false });
     } catch (e) {
-      console.error('finalize failed', e);
-      showToast('في مشكلة وإحنا بنحسب النقط — مفيش حاجة اتغيرت', 'error');
+      console.error('finalize gw-advance failed', e);
+      showToast('البوينتس اتسجلت، بس مقدرش يبدأ جيم ويك جديد — جرب تاني', 'error');
       setBusy(null); return;
     }
     try {
@@ -97,7 +131,7 @@ export default function GameweekTab() {
     }
     await refresh();
     setUsers(freshUsers);
-    showToast('البوينتس اتسجلت وكل اللاعبين اتصفّروا — بدأ GW ' + nextGw, 'success');
+    if (pricingOk) showToast(`البوينتس اتسجلت، أسعار ${pricingChangedCount} لاعب اتغيّرت، وكل اللاعبين اتصفّروا — بدأ GW ${nextGw}`, 'success');
     setBusy(null);
   };
 
@@ -109,6 +143,13 @@ export default function GameweekTab() {
       <div className="card">
         <h3 className="disp" style={{ margin: '0 0 10px' }}>التحكم في الجيم ويك</h3>
         <p>الجيم ويك الحالي: <b className="rank1">GW {gwState.gw}</b> — الحالة: <span className={`statusDot ${gwState.locked ? 'is-locked' : 'is-open'}`}>{gwState.locked ? 'قافل' : 'مفتوح'}</span></p>
+        {lastPriceUpdate && (
+          <p className="hint" style={{ color: lastPriceUpdate.ok ? 'var(--green, #087f5b)' : 'var(--red)' }}>
+            {lastPriceUpdate.ok
+              ? `✓ أسعار اللاعبين اتحدّثت بعد قفل GW ${lastPriceUpdate.gw} (${lastPriceUpdate.count} لاعب اتغيّر سعره)`
+              : `⚠ تحديث الأسعار فشل بعد قفل GW ${lastPriceUpdate.gw} — شوف الرسالة اللي طلعت، وصحّح الأسعار يدوي من تبويب "اللاعبين" لو محتاج`}
+          </p>
+        )}
 
         <div style={{ marginTop: 14 }}>
           <button className="btn ghost" style={{ width: '100%' }} disabled={busy === 'lock'} onClick={toggleLock}>

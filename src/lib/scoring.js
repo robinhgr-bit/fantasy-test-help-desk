@@ -43,6 +43,27 @@ export function calcPlayerPoints(pid, statsGW) {
   return pts;
 }
 
+// ---------------- market price movement ----------------
+// Runs once per player after a gameweek is finalized, on that player's OWN
+// gameweek points (independent of who owns them). Moves only the live
+// "current" price — a player's host-set "initial" price never changes here.
+export function priceDeltaForPoints(points) {
+  const pts = Number(points) || 0;
+  if (pts === 0) return 0;
+  if (pts <= 4) return -0.1; // also covers a bad gameweek that goes negative (red card, own goals, etc.)
+  if (pts <= 15) return 0;
+  if (pts <= 23) return 0.1;
+  return 0.2;
+}
+export function applyPriceChange(currentPrice, points) {
+  const delta = priceDeltaForPoints(points);
+  if (!delta) return Number(currentPrice) || 0;
+  const next = (Number(currentPrice) || 0) + delta;
+  // Floor instead of letting a run of bad gameweeks push the price to zero
+  // or negative; round to kill float drift (10.1 + 0.1 !== 10.2 in JS).
+  return Math.max(0.1, Math.round(next * 10) / 10);
+}
+
 export const SQUAD_SIZE = 7;
 
 export function defaultTeam() {

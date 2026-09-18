@@ -63,10 +63,39 @@
 .leagueFixture .fixtureTeam { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
 .leagueFixture .fixtureTeam .teamBadge { width: 56px; height: 56px; font-size: 20px; }
 .leagueFixture .fixtureTeam strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #37003c; font-size: 12px; font-weight: 800; text-align: center; }
+/* Goal-scorer line under each team name — deliberately thin/light so it
+   reads as secondary detail, not competing with the team name above it. */
+.leagueFixture .fixtureScorers { max-width: 100%; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8b7e91; font-size: 8px; font-weight: 400; text-align: center; }
 .leagueFixture .fixtureScore { text-align: center; color: #37003c; font-size: 20px; font-weight: 950; }
 .leagueFixture .fixtureSets { display: flex; justify-content: center; gap: 5px; margin-top: 3px; color: #837686; font-size: 8px; font-weight: 700; }
 .leagueFixture footer { padding: 6px; text-align: center; color: #958999; background: #faf8fa; font-size: 9px; }
 
 .leagueEmpty { padding: 30px; text-align: center; color: #8b7e8e; font-size: 11px; }
 
+/* Matches section: upcoming-by-default list + an archive of past days,
+   reached through a sidebar (a horizontal date-chip strip on narrow
+   screens, a real left column once there's room for one — see the
+   min-width breakpoint below). */
+.matchesSectionHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.archiveBackBtn { padding: 7px 12px; border: 1px solid #e6dee8; border-radius: 999px; background: #fff; color: #37003c; font: inherit; font-size: 10px; font-weight: 800; }
+
+.matchesLayout { display: flex; flex-direction: column; gap: 10px; }
+.matchesArchiveSidebar { padding: 10px; border: 1px solid #e6dee8; border-radius: 10px; background: #fff; }
+.matchesArchiveSidebar h3 { margin: 0 0 8px; color: #6f6277; font-size: 10px; font-weight: 900; letter-spacing: .5px; text-transform: uppercase; }
+.archiveDayList { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.archiveDayList button { flex: 0 0 auto; padding: 6px 12px; border: 1px solid #e6dee8; border-radius: 8px; background: #f6f3f7; color: #37003c; font: inherit; text-align: center; white-space: nowrap; }
+.archiveDayList button span { display: block; font-size: 11px; font-weight: 800; }
+.archiveDayList button small { display: block; color: #8b7e91; font-size: 8px; }
+.archiveDayList button.active { border-color: #37003c; background: #37003c; }
+.archiveDayList button.active span, .archiveDayList button.active small { color: #fff; }
+
 @media (min-width: 700px) { .leaguePage { max-width: 700px; margin: auto; } }
+
+/* Wide enough for a true left sidebar next to the list. */
+@media (min-width: 560px) {
+  .matchesLayout.hasArchive { flex-direction: row-reverse; align-items: flex-start; }
+  .matchesArchiveSidebar { flex: 0 0 150px; position: sticky; top: 8px; }
+  .archiveDayList { flex-direction: column; overflow-x: visible; }
+  .archiveDayList button { text-align: right; }
+  .matchesListCol { flex: 1; min-width: 0; }
+}

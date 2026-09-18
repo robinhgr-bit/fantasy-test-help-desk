@@ -8,12 +8,15 @@ export function uid() {
 export async function sbGetPlayers() {
   const rows = (await sbFetch('players?select=*')) || [];
   // Postgres `numeric` comes back as a string over REST — coerce or price math concatenates.
-  return rows.map((r) => ({ ...r, price: Number(r.price) || 0, locked: !!r.locked }));
+  // `price` is the live/current market price (squad valuation always reads this).
+  // `initial_price` is the permanent host-set base price — falls back to
+  // `price` for players saved before that column existed.
+  return rows.map((r) => ({ ...r, price: Number(r.price) || 0, initial_price: Number(r.initial_price ?? r.price) || 0, locked: !!r.locked }));
 }
 export async function sbSetPlayers(list) {
   await sbUpsert(
     'players',
-    list.map((p) => ({ id: p.id, name: p.name, price: p.price, color: p.color || '#3C7A4F', locked: !!p.locked, team_name: p.team_name || null }))
+    list.map((p) => ({ id: p.id, name: p.name, price: p.price, initial_price: p.initial_price ?? p.price, color: p.color || '#3C7A4F', locked: !!p.locked, team_name: p.team_name || null }))
   );
   const keep = list.map((p) => p.id);
   const filter = keep.length ? `id=not.in.(${keep.map((id) => `"${id}"`).join(',')})` : 'id=neq.__none__';
@@ -78,6 +81,20 @@ export async function sbUpdateAccountField(username, field, value) {
     body: JSON.stringify({ [field]: value }),
   });
   if (!rows || !rows.length) throw new Error(`account "${username}" not found`);
+}
+// Bulk read/write for gameweek finalize: fetching and patching every
+// account one at a time (2 requests x N users) is the slow part of closing
+// a gameweek. One combined read + one combined upsert replaces that with a
+// constant number of requests regardless of league size. password_hash is
+// carried through untouched on every row — PostgREST's upsert still
+// validates NOT NULL columns via its INSERT ... ON CONFLICT, so omitting it
+// would fail the same way a bare {username, team} write does (see
+// sbUpdateAccountField above).
+export async function sbGetAllAccountsFull() {
+  return (await sbFetch('accounts?select=username,password_hash,team,points')) || [];
+}
+export async function sbBulkUpdateAccounts(rows) {
+  await sbUpsert('accounts', rows);
 }
 export async function sbResetUserPassword(username, newHash) {
   await sbUpdateAccountField(username, 'password_hash', newHash);

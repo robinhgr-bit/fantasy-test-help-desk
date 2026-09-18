@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useApp } from '../../context/AppContext';
 import { useUI } from '../../context/UIContext';
 import { sbAutoFinishOverdueMatches, sbClearTeamLogo, sbDeleteMatch, sbDeleteTeam, sbDeleteVolleyballMatch, sbGetMatches, sbGetPlayers, sbGetStats, sbGetTeams, sbGetVolleyballMatches, sbReplaceSchedule, sbSetTeamColor, sbSetTeamLogo, sbUpdateScheduledMatch, sbUploadImage } from '../../lib/db';
 import { applyFootballStatsToMatches, generateLeagueSchedule, matchDisplayStatus } from '../../lib/scheduleGenerator';
 import ImageCropModal from '../../components/ImageCropModal';
+import MatchStatsPanel from './MatchStatsPanel';
 
 // One registry per sport: a logo for the Time Table's badges, and a color
 // every player on that team inherits automatically (both football and
@@ -139,9 +141,11 @@ const toLocalDatetimeValue = (isoString) => {
 
 export default function MatchesTab() {
   const { showToast, openConfirm } = useUI();
+  const { players, stats, setStats, gwState } = useApp();
   const [sport,setSport] = useState('football');
   const [matches,setMatches] = useState([]);
   const [preview,setPreview] = useState([]);
+  const [statsMatch, setStatsMatch] = useState(null);
   const [form,setForm] = useState({ teams:'', gamesPerWeek:2, duration:60, gap:15, weekdays:['5','6'], startDate:today, startTime:'18:00', meetingsPerPair:2 });
   const table = sport === 'football' ? 'matches' : 'volleyball_matches';
   const load = useCallback(async () => {
@@ -203,8 +207,14 @@ export default function MatchesTab() {
       showToast('اتمسح الجدول كله', 'success');
     } catch (error) { console.error('Clear schedule failed:', error); showToast('فشل المسح: ' + (error.message || 'خطأ'),'error'); }
   };
+  if (statsMatch) {
+    return <div className="scheduleAdmin">
+      <MatchStatsPanel match={statsMatch} players={players} stats={stats} setStats={setStats} gwState={gwState} onClose={() => setStatsMatch(null)} />
+    </div>;
+  }
+
   return <div className="scheduleAdmin">
-    <div className="adminContentSwitch"><button className={sport==='football'?'active':''} onClick={()=>{setSport('football');setPreview([])}}>دوري الكورة</button><button className={sport==='volleyball'?'active':''} onClick={()=>{setSport('volleyball');setPreview([])}}>دوري الفولي</button></div>
+    <div className="adminContentSwitch"><button className={sport==='football'?'active':''} onClick={()=>{setSport('football');setPreview([]);setStatsMatch(null)}}>دوري الكورة</button><button className={sport==='volleyball'?'active':''} onClick={()=>{setSport('volleyball');setPreview([]);setStatsMatch(null)}}>دوري الفولي</button></div>
     <div className="card scheduleBuilder"><h3 className="disp">مولّد الدوري العشوائي</h3><p className="hint">اكتب كل فريق في سطر. كل ضغطة توليد تغيّر ترتيب المواجهات، والنظام يضمن أن كل فريق يقابل باقي الفرق.</p><label>أسماء الفرق</label><textarea rows="6" placeholder={'فريق النور\nفريق الرجاء\nفريق السلام\nفريق المحبة'} value={form.teams} onChange={(event)=>setForm({...form,teams:event.target.value})}/><div className="row"><label>مباريات كل فريق أسبوعيًا<input type="number" min="1" max="7" value={form.gamesPerWeek} onChange={(event)=>setForm({...form,gamesPerWeek:event.target.value})}/></label><label>مدة المباراة بالدقائق<input type="number" min="10" value={form.duration} onChange={(event)=>setForm({...form,duration:event.target.value})}/></label><label>فاصل بين المباريات<input type="number" min="0" value={form.gap} onChange={(event)=>setForm({...form,gap:event.target.value})}/></label></div><label>أيام اللعب</label><div className="scheduleDays">{DAYS.map(([value,label])=><button type="button" key={value} className={form.weekdays.includes(value)?'active':''} onClick={()=>toggleDay(value)}>{label}</button>)}</div><div className="row"><label>بداية الدوري<input type="date" value={form.startDate} onChange={(event)=>setForm({...form,startDate:event.target.value})}/></label><label>أول مباراة الساعة<input type="time" value={form.startTime} onChange={(event)=>setForm({...form,startTime:event.target.value})}/></label></div><label>كل فريق يقابل الفريق التاني كام مرة؟<input type="number" min="1" max="12" value={form.meetingsPerPair} onChange={(event)=>setForm({...form,meetingsPerPair:event.target.value})}/></label><p className="hint" style={{marginTop:-6}}>1 = كل الفرق تتقابل مرة واحدة بس، 2 = ذهاب وعودة (زي الافتراضي)، وهكذا.</p><div className="row"><button className="btn ghost" onClick={generate}>توليد عشوائي</button><button className="btn" onClick={publish} disabled={!preview.length}>نشر الجدول ({preview.length})</button></div></div>
     {!!preview.length&&<div className="card"><h3>معاينة قبل النشر</h3>{preview.map((match)=><div className="schedulePreview" key={match.id}><b>GW {match.gw}</b><span>{match.home_team} × {match.away_team}</span><small>{new Date(match.kickoff_time).toLocaleString('ar-EG')}</small></div>)}</div>}
     <TeamLogosEditor sport={sport} matches={matches} />
@@ -218,6 +228,7 @@ export default function MatchesTab() {
           <div className="scheduleScore scheduleScoreReadonly">
             <b>{match.home_score}</b><span>-</span><b>{match.away_score}</b>
             <span className="hint" style={{gridColumn:'span 1'}}>محسوبة من الإحصائيات</span>
+            <button className="btn small" onClick={()=>setStatsMatch(match)}>الإحصائيات</button>
             <button className="btn small" onClick={()=>saveReschedule(match)}>احفظ الميعاد</button>
             <button className="btn small danger" onClick={()=>remove(match)}>حذف</button>
           </div>

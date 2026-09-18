@@ -34,7 +34,9 @@ export default function PlayersTab() {
     const n = name.trim();
     const pr = parseFloat(price);
     if (!n || Number.isNaN(pr)) { showToast('اكتب اسم وسعر صحيح', 'error'); return; }
-    const next = [...players, { id: uid(), name: n, price: pr, team_name: teamName || null, color: colorFor(teamName), locked: false }];
+    // Current price always starts equal to the initial price the host sets
+    // here — from this point on only the automatic GW price system moves it.
+    const next = [...players, { id: uid(), name: n, price: pr, initial_price: pr, team_name: teamName || null, color: colorFor(teamName), locked: false }];
     setPlayers(next);
     try { await sbSetPlayers(next); setName(''); setPrice(''); setTeamName(''); }
     catch (e) { console.error('save player failed', e); showToast('مقدرش يحفظ اللاعب: ' + String(e.message || e).slice(0, 100), 'error'); }
@@ -73,11 +75,12 @@ export default function PlayersTab() {
   return (
     <div>
       <p className="hint" style={{ margin: '0 0 10px' }}>الفرق ولوجوهاتها وألوانها بتتضاف من تبويب "الدوري والجدول" → الفرق ولوجوهاتها. لون التيشيرت بياخده اللاعب تلقائي من فريقه.</p>
+      <p className="hint" style={{ margin: '0 0 10px' }}>السعر الأساسي ثابت وانت اللي بتحدده. السعر الحالي (المستخدم في قيمة تشكيلة كل مستخدم) بيتحدث أوتوماتيك بعد كل جيم ويك حسب نقط اللاعب: 0 نقطة مفيش تغيير، 1-4 (-0.1)، 5-15 مفيش تغيير، 16-23 (+0.1)، 24+ (+0.2).</p>
       <div className="card">
         <h3 className="disp" style={{ margin: '0 0 10px' }}>إضافة لاعب</h3>
         <div className="row">
           <div style={{ flex: 2, minWidth: 140 }}><label>الاسم</label><input placeholder="اسم اللاعب" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div style={{ flex: 1, minWidth: 90 }}><label>السعر (مليون)</label><input type="number" min="0" step="0.5" placeholder="10" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
+          <div style={{ flex: 1, minWidth: 90 }}><label>السعر الأساسي (مليون)</label><input type="number" min="0" step="0.5" placeholder="10" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
         </div>
         <div style={{ height: 8 }} />
         <label>الفريق</label>
@@ -106,7 +109,25 @@ export default function PlayersTab() {
                   <option value="">بدون فريق</option>
                   {teams.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <input type="number" step="0.5" style={{ width: 70, padding: 5 }} value={p.price} onChange={(e) => updatePlayer(p.id, { price: parseFloat(e.target.value) || 0 })} />
+                <span className="playerPriceEdit">
+                  <input
+                    type="number"
+                    step="0.5"
+                    style={{ width: 70, padding: 5 }}
+                    title="السعر الأساسي — بيتحدد يدوي وثابت، مش بيتغير أوتوماتيك"
+                    value={p.initial_price ?? p.price}
+                    onChange={(e) => updatePlayer(p.id, { initial_price: parseFloat(e.target.value) || 0 })}
+                  />
+                  <input
+                    type="number"
+                    step="0.1"
+                    style={{ width: 70, padding: 5 }}
+                    title="السعر الحالي — بيتغير أوتوماتيك بعد كل جيم ويك، وتقدر تصححه يدوي هنا لو النظام الأوتوماتيك فوّت تحديث"
+                    value={p.price}
+                    onChange={(e) => updatePlayer(p.id, { price: parseFloat(e.target.value) || 0 })}
+                  />
+                  <small className="hint">أساسي / حالي</small>
+                </span>
                 <button className={`btn small ${p.locked ? 'danger' : 'ghost'}`} title="امنع/اسمح بشراء اللاعب ده" onClick={() => toggleLock(p)}>{p.locked ? 'فك القفل' : 'قفل'}</button>
                 <button className="btn small danger" onClick={() => deletePlayer(p)}>حذف</button>
               </div>

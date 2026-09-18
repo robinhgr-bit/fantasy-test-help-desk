@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { sbAutoFinishOverdueMatches, sbGetMatches, sbGetPlayers, sbGetStats, sbGetTeamLogos, sbGetVolleyballMatches } from '../lib/db';
-import { applyFootballStatsToMatches, buildLeagueTable, matchDisplayStatus } from '../lib/scheduleGenerator';
+import { applyFootballStatsToMatches, buildLeagueTable, getMatchScorers, matchDisplayStatus } from '../lib/scheduleGenerator';
 import { buildVolleyballSetStandings, formatSigned, setsWonInMatch } from '../lib/volleyballScoring';
 import './TimeTablePage.css';
 
@@ -17,9 +17,13 @@ export default function TimeTablePage({ sport = 'football', embedded = false }) 
 
   const [football, setFootball] = useState([]);
   const [volleyball, setVolleyball] = useState([]);
+  const [scorerData, setScorerData] = useState({ players: [], stats: {} });
   const [logos, setLogos] = useState({});
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
+  // null = default view (today + upcoming). A date key (toDateString()) =
+  // browsing one archived day picked from the sidebar.
+  const [archiveDay, setArchiveDay] = useState(null);
   const load = useCallback(async () => {
     setLoading(true);
     let [fb, vb, players, stats] = await Promise.all([
@@ -34,7 +38,7 @@ export default function TimeTablePage({ sport = 'football', embedded = false }) 
     // match's kickoff + duration has passed flips it to "finished" so the
     // host doesn't have to close out every match by hand for it to count.
     vb = await sbAutoFinishOverdueMatches('volleyball_matches', vb).catch(() => vb);
-    setFootball(fb); setVolleyball(vb); setLoading(false);
+    setFootball(fb); setVolleyball(vb); setScorerData({ players, stats }); setLoading(false);
   }, []);
   useEffect(() => { load(); const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer); }, [load]);
   // Logos are fetched per sport (own table row per team) so switching the
@@ -42,6 +46,26 @@ export default function TimeTablePage({ sport = 'football', embedded = false }) 
   useEffect(() => { sbGetTeamLogos(activeSport).then(setLogos).catch(() => setLogos({})); }, [activeSport]);
 
   const matches = activeSport === 'football' ? football : volleyball;
+
+  // Default view: today's matches + everything still ahead. Anything from a
+  // past calendar day moves out into the archive, browsed via the sidebar —
+  // a finished match from earlier today still stays in the default view.
+  const startOfToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, [now]);
+  const upcomingMatches = useMemo(() => matches.filter((m) => new Date(m.kickoff_time) >= startOfToday), [matches, startOfToday]);
+  const archivedMatches = useMemo(() => matches.filter((m) => new Date(m.kickoff_time) < startOfToday), [matches, startOfToday]);
+  const archiveDays = useMemo(() => {
+    const byDay = new Map();
+    archivedMatches.forEach((m) => {
+      const d = new Date(m.kickoff_time);
+      const key = d.toDateString();
+      if (!byDay.has(key)) byDay.set(key, { key, date: d, count: 0 });
+      byDay.get(key).count += 1;
+    });
+    return [...byDay.values()].sort((a, b) => b.date - a.date);
+  }, [archivedMatches]);
+  useEffect(() => { setArchiveDay(null); }, [activeSport]);
+  const visibleMatches = archiveDay ? archivedMatches.filter((m) => new Date(m.kickoff_time).toDateString() === archiveDay) : upcomingMatches;
+
   // Football keeps the classic played/won/drawn/lost/points table; volleyball
   // ranks purely on sets (won, then set ratio, then point ratio) — a real
   // volleyball standings table has no notion of match points at all.
@@ -126,53 +150,85 @@ export default function TimeTablePage({ sport = 'football', embedded = false }) 
           {!table.length && <div className="leagueEmpty">الهوست لسه ما نشرش الدوري</div>}
         </section>
 
-        <section className="leagueBlock">
-          <h2>المباريات</h2>
-          {matches.map((match, index) => {
-            const status = matchDisplayStatus(match, now);
-            const statusLabel = status === 'live' ? 'يلعب الآن' : status === 'finished' ? 'انتهت' : status === 'waiting' ? 'بانتظار النتيجة' : 'قادمة';
-            const vbSets = activeSport === 'volleyball' ? setsWonInMatch(match.sets) : null;
-            const playedSets = activeSport === 'volleyball' ? (match.sets || []).filter((s) => Number(s?.home) || Number(s?.away)) : [];
-            // Matches are already sorted by kickoff time — a day header
-            // between groups makes it obvious at a glance which matches are
-            // today vs. the next matchday, instead of reading every date.
-            const kickoff = new Date(match.kickoff_time);
-            const dayKey = kickoff.toDateString();
-            const prevDayKey = index > 0 ? new Date(matches[index - 1].kickoff_time).toDateString() : null;
-            const isNewDay = dayKey !== prevDayKey;
-            const dayLabel = Number.isNaN(kickoff.getTime()) ? '' : kickoff.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
-            return (
-              <Fragment key={match.id}>
-                {isNewDay && <div className="leagueDayDivider"><span>{dayLabel}</span></div>}
-                <article className={`leagueFixture ${status}`}>
-                  <div>
-                    <small>GW {match.gw || '-'} · {kickoff.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</small>
-                    <b>{statusLabel}</b>
-                  </div>
-                  <section>
-                    <div className="fixtureTeam">
-                      <TeamBadge name={match.home_team} logo={logos[match.home_team]} />
-                      <strong>{match.home_team}</strong>
-                    </div>
-                    {activeSport === 'volleyball' ? (
-                      <span className="fixtureScore">
-                        {status === 'upcoming' ? 'VS' : !playedSets.length ? '—' : `${vbSets.home}-${vbSets.away}`}
-                        {!!playedSets.length && <small className="fixtureSets">{playedSets.map((s, i) => <span key={i}>{s.home}-{s.away}</span>)}</small>}
-                      </span>
-                    ) : (
-                      <span className="fixtureScore">{status === 'upcoming' ? 'VS' : `${match.home_score} - ${match.away_score}`}</span>
-                    )}
-                    <div className="fixtureTeam">
-                      <TeamBadge name={match.away_team} logo={logos[match.away_team]} />
-                      <strong>{match.away_team}</strong>
-                    </div>
-                  </section>
-                  <footer>مدة المباراة {match.duration_minutes || 60} دقيقة</footer>
-                </article>
-              </Fragment>
-            );
-          })}
-          {!matches.length && <div className="leagueEmpty">لا توجد مباريات منشورة بعد</div>}
+        <section className="leagueBlock matchesSection">
+          <div className="matchesSectionHead">
+            <h2>{archiveDay ? 'أرشيف المباريات' : 'المباريات الجاية'}</h2>
+            {archiveDay && <button type="button" className="archiveBackBtn" onClick={() => setArchiveDay(null)}>← رجوع للمباريات الجاية</button>}
+          </div>
+
+          <div className={`matchesLayout ${archiveDays.length ? 'hasArchive' : ''}`}>
+            {!!archiveDays.length && (
+              <aside className="matchesArchiveSidebar">
+                <h3>الأرشيف</h3>
+                <div className="archiveDayList">
+                  {archiveDays.map((day) => (
+                    <button
+                      type="button"
+                      key={day.key}
+                      className={archiveDay === day.key ? 'active' : ''}
+                      onClick={() => setArchiveDay(day.key)}
+                    >
+                      <span>{day.date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' })}</span>
+                      <small>{day.count} ماتش</small>
+                    </button>
+                  ))}
+                </div>
+              </aside>
+            )}
+
+            <div className="matchesListCol">
+              {visibleMatches.map((match, index) => {
+                const status = matchDisplayStatus(match, now);
+                const statusLabel = status === 'live' ? 'يلعب الآن' : status === 'finished' ? 'انتهت' : status === 'waiting' ? 'بانتظار النتيجة' : 'قادمة';
+                const vbSets = activeSport === 'volleyball' ? setsWonInMatch(match.sets) : null;
+                const playedSets = activeSport === 'volleyball' ? (match.sets || []).filter((s) => Number(s?.home) || Number(s?.away)) : [];
+                const scorers = activeSport === 'football' && status !== 'upcoming' ? getMatchScorers(match, scorerData.players, scorerData.stats) : null;
+                // Matches are already sorted by kickoff time — a day header
+                // between groups makes it obvious at a glance which matches are
+                // today vs. the next matchday, instead of reading every date.
+                const kickoff = new Date(match.kickoff_time);
+                const dayKey = kickoff.toDateString();
+                const prevDayKey = index > 0 ? new Date(visibleMatches[index - 1].kickoff_time).toDateString() : null;
+                const isNewDay = dayKey !== prevDayKey;
+                const dayLabel = Number.isNaN(kickoff.getTime()) ? '' : kickoff.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
+                return (
+                  <Fragment key={match.id}>
+                    {isNewDay && <div className="leagueDayDivider"><span>{dayLabel}</span></div>}
+                    <article className={`leagueFixture ${status}`}>
+                      <div>
+                        <small>GW {match.gw || '-'} · {kickoff.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</small>
+                        <b>{statusLabel}</b>
+                      </div>
+                      <section>
+                        <div className="fixtureTeam">
+                          <TeamBadge name={match.home_team} logo={logos[match.home_team]} />
+                          <strong>{match.home_team}</strong>
+                          {!!scorers?.home && <small className="fixtureScorers">{scorers.home}</small>}
+                        </div>
+                        {activeSport === 'volleyball' ? (
+                          <span className="fixtureScore">
+                            {status === 'upcoming' ? 'VS' : !playedSets.length ? '—' : `${vbSets.home}-${vbSets.away}`}
+                            {!!playedSets.length && <small className="fixtureSets">{playedSets.map((s, i) => <span key={i}>{s.home}-{s.away}</span>)}</small>}
+                          </span>
+                        ) : (
+                          <span className="fixtureScore">{status === 'upcoming' ? 'VS' : `${match.home_score} - ${match.away_score}`}</span>
+                        )}
+                        <div className="fixtureTeam">
+                          <TeamBadge name={match.away_team} logo={logos[match.away_team]} />
+                          <strong>{match.away_team}</strong>
+                          {!!scorers?.away && <small className="fixtureScorers">{scorers.away}</small>}
+                        </div>
+                      </section>
+                      <footer>مدة المباراة {match.duration_minutes || 60} دقيقة</footer>
+                    </article>
+                  </Fragment>
+                );
+              })}
+              {!visibleMatches.length && (
+                <div className="leagueEmpty">{archiveDay ? 'مفيش مباريات في اليوم ده' : matches.length ? 'مفيش مباريات جاية دلوقتي — شوف الأرشيف' : 'لا توجد مباريات منشورة بعد'}</div>
+              )}
+            </div>
+          </div>
         </section>
       </>}
     </main>

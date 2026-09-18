@@ -52,7 +52,10 @@
 .scheduleReschedule{margin-top:7px}.scheduleReschedule label{display:grid;gap:3px;font-size:9px;color:var(--muted)}.scheduleReschedule input{min-height:36px}
 .scheduleSets{margin-top:7px}.scheduleSetRow{display:grid;grid-template-columns:60px 1fr auto 1fr;align-items:center;gap:6px;margin-bottom:5px}.scheduleSetRow span{font-size:9px;color:var(--muted);text-align:center}.scheduleSetRow input{min-width:0}
 .scheduleScoreCompact{grid-template-columns:1fr auto auto;margin-top:8px}
-.scheduleScoreReadonly{align-items:center}.scheduleScoreReadonly b{font-size:14px;color:#37003c;text-align:center}.scheduleScoreReadonly .hint{margin:0;font-size:8px}
+.scheduleScoreReadonly{align-items:center;grid-template-columns:55px auto 55px 1fr auto auto auto}.scheduleScoreReadonly b{font-size:14px;color:#37003c;text-align:center}.scheduleScoreReadonly .hint{margin:0;font-size:8px}
+.playerPriceEdit { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.playerPriceEdit small { font-size: 8px; white-space: nowrap; }
+
 .teamLogosCard .row { align-items: center; }
 .teamLogoList { display: flex; flex-direction: column; gap: 6px; }
 /* flex-wrap, not a fixed grid — this row now has 6 controls (preview, name,
@@ -74,6 +77,37 @@
 .adminContentRow > strong { min-width: 0; overflow-wrap: anywhere; }
 .adminContentRow > div { display: flex; flex-wrap: wrap; gap: 4px; }
 .adminTheme .card > div[style*="overflowX"] { max-width: 100%; overflow-x: auto !important; }
+
+/* Host Dashboard: per-match statistics table. Opened in place of the
+   schedule list (not a modal) since the table itself needs the width. */
+.matchStatsPanel { padding: 14px; border-radius: 5px; background: #fff; }
+.matchStatsHead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.matchStatsTitle { display: flex; align-items: center; gap: 8px; margin-inline-end: auto; color: #37003c; font-size: 14px; }
+.matchStatsTitle span { color: var(--muted); font-size: 11px; }
+.matchStatsSaveTag { padding: 4px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; background: #eee9ef; color: var(--muted); }
+.matchStatsSaveTag.saving { background: #fff3d6; color: #8a6300; }
+.matchStatsSaveTag.saved { background: #d8f5e8; color: #087f5b; }
+.matchStatsSaveTag.error { background: #ffe0e0; color: #b71c1c; }
+.matchStatsWarning { margin: 0 0 10px; padding: 8px 10px; border-radius: 4px; background: #fff3d6; color: #8a6300; }
+.matchStatsSummary { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.matchStatsSummary .hint { margin: 0; }
+
+.matchStatsScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.matchStatsTable { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 11px; }
+.matchStatsTable th, .matchStatsTable td { padding: 7px 6px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.matchStatsTable thead th { color: var(--muted); font-weight: 800; background: #f7f5f8; position: sticky; top: 0; }
+.matchStatsTable .statPlayerCol { min-width: 130px; text-align: right; font-weight: 800; color: #27002c; white-space: normal; }
+.matchStatsTable .statPointsCol { font-weight: 900; color: var(--gold); }
+.teamDivider td { padding: 8px 6px; text-align: right; color: #fff; background: #37003c; font-weight: 900; font-size: 11px; }
+
+.statToggle { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 5px; background: #fff; font-weight: 900; cursor: pointer; }
+.statToggle.on { border-color: #00c86f; color: #087f5b; background: #d8f5e8; }
+.statToggle:disabled { opacity: .45; cursor: default; }
+.statCounter { display: inline-flex; align-items: center; gap: 5px; }
+.statCounter button { width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 4px; background: #fff; font-weight: 900; line-height: 1; cursor: pointer; }
+.statCounter button:disabled { opacity: .35; cursor: default; }
+.statCounter b { min-width: 16px; }
+.matchStatsConflictRow { opacity: .65; background: #fffaf0; }
 
 @media (max-width: 600px) {
   .admin-app-shell { width: 100%; max-width: none; padding: 8px 8px 115px; overflow-x: hidden; }
@@ -104,6 +138,10 @@
   .adminContentRow > div { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, 1fr); }
   .volleyStatsGrid { grid-template-columns: 1fr; }
   .volleyAdminPlayer { grid-template-columns: 12px 1fr auto; }.volleyAdminPlayer .danger { grid-column: 2 / -1; }
+  .scheduleScoreReadonly { display: flex; flex-wrap: wrap; row-gap: 6px; }
+  .scheduleScoreReadonly .hint { flex: 1 1 100%; order: 1; }
+  .matchStatsHead { flex-wrap: wrap; }
+  .matchStatsTitle { order: 3; flex: 1 1 100%; }
 }
 
 @media (max-width: 380px) {

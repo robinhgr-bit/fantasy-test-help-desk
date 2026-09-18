@@ -154,6 +154,64 @@ export function guessCurrentMatchId(teamName, matches, now = Date.now()) {
   return (past.length ? past[past.length - 1] : options[0]).id;
 }
 
+// Splits a squad into the two rosters facing off in one match, for the Host
+// Dashboard's match statistics table — same team-name matching convention as
+// getUpcomingFixturesForTeam/applyFootballStatsToMatches above.
+export function getMatchTeamPlayers(players, match) {
+  const home = (match?.home_team || '').trim().toLowerCase();
+  const away = (match?.away_team || '').trim().toLowerCase();
+  return {
+    home: home ? players.filter((p) => (p.team_name || '').trim().toLowerCase() === home) : [],
+    away: away ? players.filter((p) => (p.team_name || '').trim().toLowerCase() === away) : [],
+  };
+}
+
+// Player stats live in one gw-bucket per fantasy gameweek (see sbGetStats),
+// each entry carrying an explicit matchId. Reopening a match's stats screen
+// needs to find whichever bucket already holds that matchId's numbers —
+// rather than always assuming "the currently active gameweek" — so
+// corrections to an older, already-finalized match land back on the same
+// entries instead of creating a duplicate under today's gameweek. Falls back
+// to fallbackGwKey (the current gw) for a match never scored yet.
+export function findMatchStatsGwKey(stats, playerIds, matchId, fallbackGwKey) {
+  const idSet = new Set(playerIds);
+  let found = null;
+  Object.keys(stats || {}).forEach((gwKey) => {
+    const bucket = stats[gwKey] || {};
+    Object.keys(bucket).forEach((pid) => {
+      if (!idSet.has(pid) || bucket[pid]?.matchId !== matchId) return;
+      const num = parseInt(String(gwKey).replace('gw', ''), 10);
+      if (!found || num > found.num) found = { key: gwKey, num };
+    });
+  });
+  return found ? found.key : fallbackGwKey;
+}
+
+// Who scored a football match's goals, split by side — same matchId-linking
+// convention as applyFootballStatsToMatches above, so it always agrees with
+// the score shown next to it. Returns display-ready strings, e.g.
+// "Mikha adel، Bolbol ×2" — empty string for a side with no recorded scorers.
+export function getMatchScorers(match, players, stats) {
+  const home = (match?.home_team || '').trim().toLowerCase();
+  const away = (match?.away_team || '').trim().toLowerCase();
+  const playerById = new Map(players.map((p) => [p.id, p]));
+  const homeGoals = new Map(); // player name -> goals
+  const awayGoals = new Map();
+  Object.values(stats || {}).forEach((gwStats) => {
+    Object.entries(gwStats || {}).forEach(([playerId, stat]) => {
+      const goals = Number(stat?.goals) || 0;
+      if (!goals || stat?.matchId !== match.id) return;
+      const player = playerById.get(playerId);
+      const team = (player?.team_name || '').trim().toLowerCase();
+      const bucket = team === home ? homeGoals : team === away ? awayGoals : null;
+      if (!bucket || !player) return;
+      bucket.set(player.name, (bucket.get(player.name) || 0) + goals);
+    });
+  });
+  const format = (map) => [...map.entries()].map(([name, goals]) => (goals > 1 ? `${name} ×${goals}` : name)).join('، ');
+  return { home: format(homeGoals), away: format(awayGoals) };
+}
+
 export function buildLeagueTable(matches, sport = 'football') {
   const rows = {};
   const get = (name) => rows[name] ||= { team: name, played: 0, won: 0, drawn: 0, lost: 0, scored: 0, conceded: 0, points: 0 };
