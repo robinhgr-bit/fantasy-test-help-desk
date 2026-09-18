@@ -3,7 +3,9 @@
 // installable, and (2) Firebase Cloud Messaging background push handling.
 // ============================================
 
-const CACHE_NAME = 'ffl-cache-v1';
+// Bumping this name makes the activate step below delete every older cache,
+// including the stale cache-first one that used to pin users to old code.
+const CACHE_NAME = 'ffl-cache-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -18,26 +20,36 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Cache-first for same-origin static files only — never touches Supabase
-// (rest/storage) calls, those always go straight to the network live.
+function saveCopy(request, response) {
+  if (!response || !response.ok || response.type !== 'basic') return;
+  const copy = response.clone();
+  caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+}
+
+// Same-origin GET files only — never touches Supabase (rest/storage) calls,
+// those always go straight to the network live.
+//   • /assets/* are content-hashed build files (a changed file gets a new
+//     name), so cache-first is both safe and fast.
+//   • Everything else — index.html, manifest, icons, and every module in dev —
+//     is network-first, so a new deploy reaches users on their next visit. The
+//     cache is only the offline fallback that keeps the app installable.
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const request = event.request;
+  const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (event.request.method !== 'GET') return;
+  if (request.method !== 'GET') return;
+
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetch(request).then((res) => { saveCopy(request, res); return res; }))
+    );
+    return;
+  }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
-          }
-          return res;
-        })
-        .catch(() => cached);
-    })
+    fetch(request)
+      .then((res) => { saveCopy(request, res); return res; })
+      .catch(() => caches.match(request).then((cached) => cached || (request.mode === 'navigate' ? caches.match('/') : undefined)))
   );
 });
 
