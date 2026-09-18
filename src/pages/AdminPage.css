@@ -69,7 +69,8 @@
 .adminContentSwitch button { min-height: 38px; border: 0; border-radius: 3px; color: #37003c; background: #eee9ef; font: inherit; font-weight: 900; }
 .adminContentSwitch button.active { background: #00ff87; }
 .hostContentManager .card { display: grid; gap: 8px; }
-.volleyAdmin .card { display: grid; gap: 8px; }.volleyAdminPlayer { min-height: 54px; display: grid; grid-template-columns: 15px 1fr auto auto; align-items: center; gap: 6px; border-bottom: 1px solid var(--line); }.volleyAdminPlayer i { width: 14px; height: 36px; border-radius: 3px; }.volleyAdminPlayer small { display: block; color: var(--muted); font-size: 9px; }.volleyRound > b { padding: 8px; color: #087f5b; background: #d8f5e8; text-align: center; }.volleyRound > b.locked { color: #b71c1c; background: #ffe0e0; }.volleyStatsGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }.volleyStatsGrid label { padding: 7px; display: flex; align-items: center; justify-content: space-between; gap: 5px; border: 1px solid var(--line); }.volleyStatsGrid label span { font-size: 10px; }.volleyStatsGrid input { width: 64px; }.volleyFinalize { width: 100%; min-height: 45px; }
+.volleyAdmin .card { display: grid; gap: 8px; }.volleyAdminPlayer { min-height: 54px; display: grid; grid-template-columns: 15px 1fr auto auto auto; align-items: center; gap: 6px; border-bottom: 1px solid var(--line); }.volleyAdminPlayer i { width: 14px; height: 36px; border-radius: 3px; }.volleyLineSelect { min-height: 34px; padding: 0 6px; font-size: 11px; }
+.volleyAdminPlayer small { display: block; color: var(--muted); font-size: 9px; }.volleyRound > b { padding: 8px; color: #087f5b; background: #d8f5e8; text-align: center; }.volleyRound > b.locked { color: #b71c1c; background: #ffe0e0; }.volleyStatsGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }.volleyStatsGrid label { padding: 7px; display: flex; align-items: center; justify-content: space-between; gap: 5px; border: 1px solid var(--line); }.volleyStatsGrid label span { font-size: 10px; }.volleyStatsGrid input { width: 64px; }.volleyFinalize { width: 100%; min-height: 45px; }
 .adminContentPreview { width: 120px; height: 90px; object-fit: cover; border-radius: 5px; }
 .adminContentRow { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .adminContentRow > img,
@@ -137,7 +138,10 @@
   .adminContentRow > span { width: 42px; height: 42px; }
   .adminContentRow > div { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, 1fr); }
   .volleyStatsGrid { grid-template-columns: 1fr; }
-  .volleyAdminPlayer { grid-template-columns: 12px 1fr auto; }.volleyAdminPlayer .danger { grid-column: 2 / -1; }
+  .volleyAdminPlayer { grid-template-columns: 12px 1fr 1fr; }
+  .volleyAdminPlayer strong, .volleyAdminPlayer .volleyLineSelect { grid-column: 2 / -1; }
+  .volleyAdminPlayer .btn { grid-column: 2; }
+  .volleyAdminPlayer .btn.danger { grid-column: 3; }
   .scheduleScoreReadonly { display: flex; flex-wrap: wrap; row-gap: 6px; }
   .scheduleScoreReadonly .hint { flex: 1 1 100%; order: 1; }
   .matchStatsHead { flex-wrap: wrap; }

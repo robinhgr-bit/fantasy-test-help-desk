@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useUI } from '../context/UIContext';
 import { sbGetAccount, sbGetVolleyballAccounts, sbGetVolleyballMatches, sbGetVolleyballPlayers, sbGetVolleyballState, sbGetVolleyballStats, sbUpdateAccountField } from '../lib/db';
-import { calcVolleyballTeamPoints, defaultVolleyballTeam, normalizeVolleyballTeam, VOLLEYBALL_RULES } from '../lib/volleyballScoring';
+import { activeVolleyballChip, calcVolleyballTeamPoints, isVolleyballChipActive, defaultVolleyballTeam, getVolleyballTeamBreakdown, normalizeVolleyballTeam, VB_CHIP_RULES, VB_CHIPS, VB_LINES, VB_SQUAD_RULES, VOLLEYBALL_RULES, volleyballLine, volleyballLineProblems, volleyballRuleWorthText, volleyballSlotLine } from '../lib/volleyballScoring';
 import { getUpcomingFixturesForTeam, matchDisplayStatus } from '../lib/scheduleGenerator';
+import { MAX_PER_TEAM, teamKeyOf, teamLimitProblems, wouldBreakTeamLimit } from '../lib/squadRules';
 import { BrandGlyph } from '../components/Brand';
 import FantasyBrandHeader from '../components/FantasyBrandHeader';
 import NewsPage from './NewsPage';
@@ -105,6 +106,8 @@ export default function VolleyballFantasyPage({ onSwitchSport }) {
   const [matches, setMatches] = useState([]);
   const [picker, setPicker] = useState(null);
   const [detailsPlayer, setDetailsPlayer] = useState(null);
+  const [chipSheet, setChipSheet] = useState(null); // key of the chip whose explanation sheet is open
+  const [shieldPick, setShieldPick] = useState(''); // player chosen in the Libero Shield sheet
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -121,11 +124,25 @@ export default function VolleyballFantasyPage({ onSwitchSport }) {
 
   const byId = useMemo(() => Object.fromEntries(players.map((player) => [player.id, player])), [players]);
   const selectedIds = [...team.starters, ...team.bench].filter(Boolean);
+  const lineProblems = volleyballLineProblems(team, byId);
+  const teamProblems = teamLimitProblems(selectedIds, byId, MAX_PER_TEAM.volleyball);
   const spent = selectedIds.reduce((total, id) => total + (byId[id]?.price || 0), 0);
-  const livePoints = calcVolleyballTeamPoints(team, stats);
+  const livePoints = calcVolleyballTeamPoints(team, stats, state.gw);
+  const breakdown = getVolleyballTeamBreakdown(team, stats, state.gw);
+  const activeChip = activeVolleyballChip(team, state.gw);
+  const sheetChip = VB_CHIPS.find((chip) => chip.key === chipSheet) || null;
+  // Wildcard/Free Hit only mean something once transfers are being counted,
+  // which starts after the first gameweek close records a full squad.
+  const chipStatus = (chip) => {
+    const usedIn = team.chips[chip.key];
+    if (usedIn != null) return Number(usedIn) === Number(state.gw) ? 'active' : 'used';
+    if (activeChip) return 'blocked';
+    if ((chip.key === 'wildcard' || chip.key === 'freeHit') && !team.transfers?.start) return 'unavailable';
+    return 'available';
+  };
   const savedTotal = Object.values(points).reduce((sum, value) => sum + (Number(value) || 0), 0);
   const totalPoints = savedTotal + (points[`gw${state.gw}`] === undefined ? livePoints : 0);
-  const ranking = accounts.map((account) => { const saved = account.volleyball_points || {}; const total = Object.values(saved).reduce((sum, value) => sum + (Number(value) || 0), 0); const live = saved[`gw${state.gw}`] === undefined ? calcVolleyballTeamPoints(account.volleyball_team, stats) : 0; return { username: account.username, total: total + live, gw: saved[`gw${state.gw}`] ?? live }; }).sort((a,b) => b.total - a.total);
+  const ranking = accounts.map((account) => { const saved = account.volleyball_points || {}; const total = Object.values(saved).reduce((sum, value) => sum + (Number(value) || 0), 0); const live = saved[`gw${state.gw}`] === undefined ? calcVolleyballTeamPoints(account.volleyball_team, stats, state.gw) : 0; return { username: account.username, total: total + live, gw: saved[`gw${state.gw}`] ?? live }; }).sort((a,b) => b.total - a.total);
   const myRank = Math.max(1, ranking.findIndex((row) => row.username === user) + 1);
   const gwScores = ranking.map((row) => Number(row.gw) || 0);
   const gwAverage = gwScores.length ? Math.round(gwScores.reduce((sum, value) => sum + value, 0) / gwScores.length) : 0;
@@ -138,11 +155,60 @@ export default function VolleyballFantasyPage({ onSwitchSport }) {
   const choosePlayer = (player) => {
     if (selectedIds.includes(player.id)) return showToast('اللاعب موجود بالفعل', 'error');
     if (spent + player.price > budgetLimit) return showToast('الميزانية لا تكفي', 'error');
+    if (wouldBreakTeamLimit(player, selectedIds, byId, MAX_PER_TEAM.volleyball)) return showToast(`مسموح ${MAX_PER_TEAM.volleyball} لاعبين بس من نفس الفريق (${player.team_name})`, 'error');
+    if (picker.group === 'starters' && volleyballLine(player) !== volleyballSlotLine(picker.index)) return showToast(`المكان ده لاعب ${VB_LINES[volleyballSlotLine(picker.index)].arLabel} بس`, 'error');
     setTeam((current) => ({ ...current, [picker.group]: current[picker.group].map((id,index) => index === picker.index ? player.id : id) })); setPicker(null);
   };
-  const removePlayer = (group,index) => { const removed = team[group][index]; setTeam((current) => ({ ...current, [group]: current[group].map((id,itemIndex) => itemIndex === index ? null : id), captainId: current.captainId === removed ? null : current.captainId, viceCaptainId: current.viceCaptainId === removed ? null : current.viceCaptainId })); };
-  const autoPick = () => { const picked = [...players].sort((a,b) => a.price - b.price).slice(0,10); if (picked.length < 10 || picked.reduce((sum,p) => sum + p.price,0) > budgetLimit) return showToast('لا يوجد 10 لاعبين مناسبين للميزانية', 'error'); setTeam({ starters: picked.slice(0,6).map((p) => p.id), bench: picked.slice(6).map((p) => p.id), captainId: picked[0].id, viceCaptainId: picked[1].id }); };
-  const save = async () => { if (team.starters.some((id) => !id) || team.bench.some((id) => !id)) return showToast('اختار 6 أساسي و4 دكة', 'error'); if (!team.captainId || !team.viceCaptainId || team.captainId === team.viceCaptainId) return showToast('اختار Captain وVice Captain مختلفين', 'error'); await sbUpdateAccountField(user,'volleyball_team',team); showToast('تم حفظ الفريق','success'); };
+  const removePlayer = (group,index) => { const removed = team[group][index]; setTeam((current) => ({ ...current, [group]: current[group].map((id,itemIndex) => itemIndex === index ? null : id), captainId: current.captainId === removed ? null : current.captainId, viceCaptainId: current.viceCaptainId === removed ? null : current.viceCaptainId, shieldedId: current.shieldedId === removed ? null : current.shieldedId })); };
+  const autoPick = () => {
+    const cheapest = (list) => [...list].sort((x, y) => x.price - y.price);
+    const perTeam = {};
+    const usedIds = new Set();
+    const take = (list, count) => {
+      const chosen = [];
+      for (const player of cheapest(list)) {
+        if (chosen.length === count) break;
+        const key = teamKeyOf(player);
+        if (usedIds.has(player.id) || (key && (perTeam[key] || 0) >= MAX_PER_TEAM.volleyball)) continue;
+        if (key) perTeam[key] = (perTeam[key] || 0) + 1;
+        usedIds.add(player.id);
+        chosen.push(player);
+      }
+      return chosen;
+    };
+    const front = take(players.filter((player) => volleyballLine(player) === 'front'), 3);
+    const back = take(players.filter((player) => volleyballLine(player) === 'back'), 3);
+    if (front.length < 3 || back.length < 3) return showToast('محتاج 3 لاعبين أمامي و3 خلفي على الأقل (الهوست لسه ماحدّدش الصفوف، أو الفرق قليلة)', 'error');
+    const bench = take(players, 4);
+    if (bench.length < 4 || [...front, ...back, ...bench].reduce((sum, player) => sum + player.price, 0) > budgetLimit) return showToast('مش قادر أكوّن 10 لاعبين بالميزانية والحد المسموح من نفس الفريق', 'error');
+    setTeam((current) => ({ ...current, starters: [...front, ...back].map((player) => player.id), bench: bench.map((player) => player.id), captainId: front[0].id, viceCaptainId: front[1].id, shieldedId: back.some((player) => player.id === current.shieldedId) ? current.shieldedId : null }));
+  };
+  const save = async () => { if (team.starters.some((id) => !id) || team.bench.some((id) => !id)) return showToast('اختار 6 أساسي و4 دكة', 'error'); if (!team.captainId || !team.viceCaptainId || team.captainId === team.viceCaptainId) return showToast('اختار Captain وVice Captain مختلفين', 'error'); if (teamProblems.length) return showToast(`مسموح ${MAX_PER_TEAM.volleyball} لاعبين بس من نفس الفريق (${teamProblems[0].team} عنده ${teamProblems[0].count})`, 'error'); if (lineProblems.length) return showToast(`${byId[lineProblems[0].id]?.name || 'لاعب'} مش في الصف الصح (المطلوب: ${VB_LINES[lineProblems[0].need].arLabel})`, 'error'); await sbUpdateAccountField(user,'volleyball_team',team); showToast('تم حفظ الفريق','success'); };
+  const sheetStatus = sheetChip ? chipStatus(sheetChip) : null;
+  // Activating/cancelling a chip saves right away, on top of whatever is
+  // already saved — not the unsaved draft squad on screen — so playing a chip
+  // can never accidentally save a half-edited team.
+  // `targetId` is the protected player for Libero Shield; `keepActive` swaps
+  // that player while the chip stays on.
+  const toggleChip = async (chip, { targetId = '', keepActive = false } = {}) => {
+    if (state.locked) return showToast('الجيم ويك مقفول', 'error');
+    const status = chipStatus(chip);
+    if (keepActive ? status !== 'active' : status !== 'available' && status !== 'active') return;
+    const activating = keepActive || status === 'available';
+    if (chip.needsTarget && activating && !targetId) return showToast('اختار اللاعب الأول', 'error');
+    try {
+      const own = await sbGetAccount(user, 'volleyball_team');
+      const saved = normalizeVolleyballTeam(own?.volleyball_team);
+      if (chip.needsTarget && activating && volleyballLine(byId[targetId]) !== 'back') return showToast('الدرع شغال مع لاعبين الصف الخلفي بس', 'error');
+      if (chip.needsTarget && activating && !saved.starters.includes(targetId)) return showToast('اللاعب ده مش في تشكيلتك المحفوظة، دوس Save Team الأول', 'error');
+      saved.chips = { ...saved.chips, [chip.key]: activating ? Number(state.gw) : null };
+      if (chip.needsTarget) saved.shieldedId = activating ? targetId : null;
+      await sbUpdateAccountField(user, 'volleyball_team', saved);
+      setTeam((current) => ({ ...current, chips: saved.chips, shieldedId: saved.shieldedId }));
+      showToast(keepActive ? 'اتغيّر اللاعب' : activating ? `اتفعّل ${chip.arName} للجيم ويك ${state.gw}` : `اتلغى ${chip.arName}`, 'success');
+    } catch (e) { console.error('volleyball chip toggle failed', e); showToast('مقدرش يحفظ الـ chip: ' + String(e.message || e).slice(0, 80), 'error'); }
+  };
+  const openChip = (chip) => { setShieldPick(team.shieldedId || ''); setChipSheet(chip.key); };
 
   if (loading) return <main className="vb-page"><FantasyBrandHeader sport="volleyball" onSwitchSport={onSwitchSport} /><div className="vb-state"><span className="fpl-state-spinner" /><strong>Loading Volleyball</strong><small>Getting your squad and gameweek state...</small></div></main>;
   if (error) return <main className="vb-page"><FantasyBrandHeader sport="volleyball" onSwitchSport={onSwitchSport} /><div className="vb-state"><strong>{error}</strong><button onClick={load}>إعادة المحاولة</button></div></main>;
@@ -203,15 +269,18 @@ export default function VolleyballFantasyPage({ onSwitchSport }) {
     </div>}
 
     {section === 'team' && <div className="vb-screen">
-      <div className="vb-heading"><h1>My Team</h1><span>6 starters · 4 bench</span></div>
+      <div className="vb-heading"><h1>My Team</h1><span>3 front · 3 back · 4 bench</span></div>
       <div className="vb-team-values">
         <span>Budget Remaining <b>${(budgetLimit-spent).toFixed(1)}m</b></span>
         <span>Team Value <b>${spent.toFixed(1)}m</b></span>
       </div>
+      {!!lineProblems.length && <div className="vb-line-warning">⚠ {lineProblems.map((problem) => `${byId[problem.id]?.name || 'لاعب'} (لازم ${VB_LINES[problem.need].arLabel})`).join('، ')} — مش في الصف الصح. غيّرهم واحفظ التشكيلة.</div>}
+      {!!teamProblems.length && <div className="vb-line-warning">⚠ عندك {teamProblems.map((problem) => `${problem.count} من ${problem.team}`).join('، ')} — المسموح ${MAX_PER_TEAM.volleyball} بس من نفس الفريق. غيّر واحد واحفظ.</div>}
+      {activeChip && <div className="vb-chip-banner"><span>{activeChip.icon}</span><div><strong>{activeChip.name} · {activeChip.arName}</strong><small>مفعّل في الجيم ويك {state.gw}{activeChip.needsTarget ? ` · على ${byId[team.shieldedId]?.name || 'لسه محدّدتش لاعب'}` : ''}</small></div></div>}
       <section className="vb-court">
         <div className="vb-court-floor">
           <div className="vb-net" />
-          <div className="vb-six">{team.starters.map((id,index) => <PlayerSlot key={index} player={byId[id]} zone={ZONE_LABELS[index]} captain={id === team.captainId} vice={id === team.viceCaptainId} label={`Player ${index+1}`} locked={state.locked} onClick={() => id ? removePlayer('starters',index) : setPicker({group:'starters',index})} onCaptain={id ? () => setTeam((current) => ({...current,captainId:id,viceCaptainId:current.viceCaptainId === id ? null : current.viceCaptainId})) : null} onVice={id ? () => setTeam((current) => ({...current,viceCaptainId:id,captainId:current.captainId === id ? null : current.captainId})) : null} onInfo={id ? (event) => { event.stopPropagation(); setDetailsPlayer(byId[id]); } : null}/>)}</div>
+          <div className="vb-six">{team.starters.map((id,index) => <PlayerSlot key={index} player={byId[id]} zone={ZONE_LABELS[index]} captain={id === team.captainId} vice={id === team.viceCaptainId} label={index < 3 ? `Front ${index+1}` : `Back ${index-2}`} locked={state.locked} onClick={() => id ? removePlayer('starters',index) : setPicker({group:'starters',index})} onCaptain={id ? () => setTeam((current) => ({...current,captainId:id,viceCaptainId:current.viceCaptainId === id ? null : current.viceCaptainId})) : null} onVice={id ? () => setTeam((current) => ({...current,viceCaptainId:id,captainId:current.captainId === id ? null : current.captainId})) : null} onInfo={id ? (event) => { event.stopPropagation(); setDetailsPlayer(byId[id]); } : null}/>)}</div>
         </div>
       </section>
       <section className="vb-bench">
@@ -219,6 +288,29 @@ export default function VolleyballFantasyPage({ onSwitchSport }) {
         <div>{team.bench.map((id,index) => <PlayerSlot key={index} player={byId[id]} label={`Sub ${index+1}`} locked={state.locked} onClick={() => id ? removePlayer('bench',index) : setPicker({group:'bench',index})} onInfo={id ? (event) => { event.stopPropagation(); setDetailsPlayer(byId[id]); } : null}/>)}</div>
       </section>
       {!state.locked && <div className="vb-team-buttons"><button onClick={autoPick}>Auto Pick</button><button onClick={save}>Save Team</button></div>}
+
+      <section className="vb-chips-bar">
+        <div className="vb-chips-head"><strong>Chips</strong><small>اضغط على أي chip للشرح والتفعيل</small></div>
+        <div className="vb-chips-row">
+          {VB_CHIPS.map((chip) => {
+            const status = chipStatus(chip);
+            return (
+              <button key={chip.key} type="button" className={`vb-chip-tile ${status}`} onClick={() => openChip(chip)} title={chip.name}>
+                <span>{chip.icon}</span><small>{chip.arName}</small>{status === 'active' && <i>✓</i>}
+              </button>
+            );
+          })}
+        </div>
+        <p className="vb-transfers-line">
+          {isVolleyballChipActive(team, 'wildcard', state.gw) || isVolleyballChipActive(team, 'freeHit', state.gw) ? (
+            <>تحويلات <b>مفتوحة</b> من غير خصم في الجيم ويك ده</>
+          ) : !team.transfers?.start ? (
+            <>أول تشكيلة ببلاش. التحويلات بتتحسب بعد أول جيم ويك</>
+          ) : (
+            <>تحويلات <b>{breakdown.transfersMade}</b> · مجاني <b>{breakdown.freeTransfers}</b>{breakdown.hit > 0 ? <> · خصم <b className="minus">{breakdown.hit} نقطة</b></> : <> · مفيش خصم</>}</>
+          )}
+        </p>
+      </section>
     </div>}
 
     {section === 'matches' && <div className="vb-screen">
@@ -236,7 +328,7 @@ export default function VolleyballFantasyPage({ onSwitchSport }) {
       </section>
       <div className="vb-title"><h2>Matchweek Highlights</h2></div>
       <section className="vb-highlights">
-        {[['point_won','Top Scorer','pts'],['best_blocker','Most Blocks','blocks'],['best_setter','Best Setter','awards']].map(([key,label,unit]) => { const top=topFor(key); return <div key={key}><small>{label}</small><PlayerPhoto player={top?.player}/><strong>{top?.player?.name || '-'}</strong><b>{top?.value || 0} {unit}</b></div>; })}
+        {[['point_won','Top Scorer','pts'],['block','Most Blocks','blocks'],['ace_serve','Most Aces','aces']].map(([key,label,unit]) => { const top=topFor(key); return <div key={key}><small>{label}</small><PlayerPhoto player={top?.player}/><strong>{top?.player?.name || '-'}</strong><b>{top?.value || 0} {unit}</b></div>; })}
       </section>
     </div>}
 
@@ -246,12 +338,64 @@ export default function VolleyballFantasyPage({ onSwitchSport }) {
       <div className="vb-heading"><h1>More</h1><span>Play. Predict. Dominate.</span></div>
       <section className="vb-rules">
         <h2>Scoring System</h2>
-        {VOLLEYBALL_RULES.map(([key,label,value]) => <div key={key}><span>{label}</span><b className={value<0?'minus':''}>{value>0?'+':''}{value}</b></div>)}
+        {VOLLEYBALL_RULES.map((rule) => <div key={rule[0]}><span>{rule[1]}</span><b className={rule[2]<0?'minus':''}>{volleyballRuleWorthText(rule)}</b></div>)}
+      </section>
+      <section className="vb-chip-guide">
+        <h2>قواعد التشكيلة · Squad</h2>
+        <ul>{VB_SQUAD_RULES.map((rule) => <li key={rule}>{rule}</li>)}</ul>
+      </section>
+      <section className="vb-chip-guide">
+        <h2>Chips · الأدوات الخاصة</h2>
+        <p className="vb-chip-guide-intro">أدوات بتقلب الجيم ويك لصالحك. بتفعّلها من تبويب Team قبل القفل.</p>
+        {VB_CHIPS.map((chip) => (
+          <article key={chip.key}>
+            <header><span>{chip.icon}</span><strong>{chip.name}</strong><em>{chip.arName}</em></header>
+            <p>{chip.how}</p>
+            <p className="vb-chip-example">مثال: {chip.example}</p>
+          </article>
+        ))}
+        <h3>القواعد</h3>
+        <ul>{VB_CHIP_RULES.map((rule) => <li key={rule}>{rule}</li>)}</ul>
       </section>
       <div className="vb-exclusive">حصريًا في كنيسة العذراء مريم بالفجالة<small>Volleyball brings us closer.</small></div>
     </div>}
 
-    {picker && <div className="vb-picker" onClick={() => setPicker(null)}><div onClick={(event) => event.stopPropagation()}><header><h2>Choose player</h2><button onClick={() => setPicker(null)}>×</button></header>{players.map((player) => { const next = getUpcomingFixturesForTeam(player.team_name, matches, 1)[0]; return <button key={player.id} disabled={selectedIds.includes(player.id)||spent+player.price>budgetLimit} onClick={() => choosePlayer(player)}><PlayerPhoto player={player}/><strong>{player.name}<small>{player.team_name || player.country || 'Fagalla'}{next ? ` · Next: ${next.venue} vs ${next.opponent}` : ''}</small></strong><b>${player.price}m</b></button>; })}</div></div>}
+    {sheetChip && <div className="vb-picker" onClick={() => setChipSheet(null)}>
+      <div onClick={(event) => event.stopPropagation()}>
+        <header><h2>{sheetChip.icon} {sheetChip.name}</h2><button onClick={() => setChipSheet(null)}>×</button></header>
+        <div className="vb-chip-sheet">
+          <em>{sheetChip.arName}</em>
+          <p>{sheetChip.how}</p>
+          <p className="vb-chip-example">مثال: {sheetChip.example}</p>
+          {sheetChip.needsTarget && ['available', 'active'].includes(sheetStatus) && (
+            <label className="vb-chip-target">اختار اللاعب (من الصف الخلفي)
+              <select value={shieldPick} onChange={(event) => setShieldPick(event.target.value)}>
+                <option value="">— اختار لاعب —</option>
+                {team.starters.filter((id) => id && volleyballLine(byId[id]) === 'back').map((id) => <option key={id} value={id}>{byId[id]?.name || id}</option>)}
+              </select>
+            </label>
+          )}
+          <div>
+            {sheetChip.needsTarget && sheetStatus === 'active' && (
+              <button type="button" className="vb-chip-action" disabled={state.locked || !shieldPick || shieldPick === team.shieldedId} onClick={async () => { await toggleChip(sheetChip, { targetId: shieldPick, keepActive: true }); setChipSheet(null); }}>تغيير اللاعب</button>
+            )}
+            <button type="button" className={`vb-chip-action${sheetChip.needsTarget && sheetStatus === 'active' ? ' secondary' : ''}`} disabled={state.locked || !['available', 'active'].includes(sheetStatus) || (sheetChip.needsTarget && sheetStatus === 'available' && !shieldPick)} onClick={async () => { await toggleChip(sheetChip, { targetId: shieldPick }); setChipSheet(null); }}>
+              {state.locked ? 'الجيم ويك مقفول' : sheetStatus === 'active' ? 'إلغاء التفعيل' : sheetStatus === 'used' ? `اتستخدم في GW${team.chips[sheetChip.key]}` : sheetStatus === 'blocked' ? 'فيه chip تاني مفعّل الجيم ويك ده' : sheetStatus === 'unavailable' ? 'بيتفتح بعد أول جيم ويك' : 'فعّل دلوقتي'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>}
+
+    {picker && (() => {
+      const need = picker.group === 'starters' ? volleyballSlotLine(picker.index) : null;
+      const options = need ? players.filter((player) => volleyballLine(player) === need) : players;
+      return <div className="vb-picker" onClick={() => setPicker(null)}><div onClick={(event) => event.stopPropagation()}>
+        <header><h2>{need ? `Choose ${VB_LINES[need].label.toLowerCase()} player · ${VB_LINES[need].arLabel}` : 'Choose bench player'}</h2><button onClick={() => setPicker(null)}>×</button></header>
+        {!options.length && <p className="vb-picker-empty">مفيش لاعبين {need ? VB_LINES[need].arLabel : ''} متاحين — الهوست لسه ماحدّدش صفوف اللاعبين.</p>}
+        {options.map((player) => { const next = getUpcomingFixturesForTeam(player.team_name, matches, 1)[0]; const line = volleyballLine(player); const teamFull = wouldBreakTeamLimit(player, selectedIds, byId, MAX_PER_TEAM.volleyball); return <button key={player.id} disabled={selectedIds.includes(player.id)||spent+player.price>budgetLimit||teamFull} onClick={() => choosePlayer(player)}><PlayerPhoto player={player}/><strong>{player.name}<small>{player.team_name || player.country || 'Fagalla'}{line ? ` · ${VB_LINES[line].arLabel}` : ''}{teamFull ? ' · وصلت الحد من الفريق ده' : ''}{next ? ` · Next: ${next.venue} vs ${next.opponent}` : ''}</small></strong><b>${player.price}m</b></button>; })}
+      </div></div>;
+    })()}
 
     {detailsPlayer && <div className="vb-picker" onClick={() => setDetailsPlayer(null)}>
       <div onClick={(event) => event.stopPropagation()}>

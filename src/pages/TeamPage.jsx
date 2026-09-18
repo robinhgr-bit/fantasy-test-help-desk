@@ -8,6 +8,7 @@ import { useApp } from '../context/AppContext';
 import { sbGetAccountTeams, sbGetMatches } from '../lib/db';
 import { calcTeamPointsBreakdown } from '../lib/scoring';
 import { getUpcomingFixturesForTeam } from '../lib/scheduleGenerator';
+import { indexPlayers, MAX_PER_TEAM, wouldBreakTeamLimit } from '../lib/squadRules';
 import { useRankInfo } from '../hooks/useRankInfo';
 import { BrandGlyph } from '../components/Brand';
 import FantasyBrandHeader from '../components/FantasyBrandHeader';
@@ -1921,6 +1922,16 @@ export default function TeamPage({ onOpenStandings, sport, onSwitchSport }) {
         currentPlayer
       );
 
+    // Same-team limit: everyone else in the squad (minus the player being
+    // swapped out) plus this player must stay within the per-team cap.
+    const otherSquadIds = [...draftTeam.starters, ...draftTeam.bench]
+      .filter(Boolean)
+      .filter((id) => String(id) !== String(currentId));
+    if (wouldBreakTeamLimit(player, otherSquadIds, indexPlayers(players), MAX_PER_TEAM.football)) {
+      window.alert(`ممنوع يبقى معاك أكتر من ${MAX_PER_TEAM.football} لاعب من نفس الفريق (${getTeamName(player)}).`);
+      return;
+    }
+
     const projectedSpent =
       spent - oldPrice + price;
 
@@ -2777,6 +2788,10 @@ function FullTransferPage({
 
   const outgoingPlayer = getPlayerById(allPlayers, currentId);
   const spendable = bank + getPlayerPrice(outgoingPlayer);
+  const playerIndex = indexPlayers(allPlayers);
+  const otherSquadIds = [...(team?.starters || []), ...(team?.bench || [])]
+    .filter(Boolean)
+    .filter((id) => String(id) !== String(currentId));
 
   const rows = useMemo(() => {
     const min = minPrice === '' ? null : Number(minPrice);
@@ -2939,7 +2954,8 @@ function FullTransferPage({
                 {rows.map(({player, agg}) => {
                   const isCurrent = String(player.id) === String(currentId);
                   const tooExpensive = selectedTarget && getPlayerPrice(player) > spendable;
-                  const selectionDisabled = !selectedTarget || isCurrent || tooExpensive || locked || player.locked;
+                  const teamFull = Boolean(selectedTarget) && !isCurrent && wouldBreakTeamLimit(player, otherSquadIds, playerIndex, MAX_PER_TEAM.football);
+                  const selectionDisabled = !selectedTarget || isCurrent || tooExpensive || teamFull || locked || player.locked;
                   const next = getUpcomingFixturesForTeam(getTeamName(player), matches, 1)[0];
                   return (
                     <tr key={player.id} className={`${isCurrent ? 'current' : ''} ${tooExpensive ? 'unaffordable' : ''}`} onClick={() => onDetails(player)}>
@@ -2971,7 +2987,7 @@ function FullTransferPage({
                             if (!selectionDisabled) onSelect(player);
                           }}
                         >
-                          {!selectedTarget ? 'Pick out first' : isCurrent ? 'Current' : player.locked ? 'Unavailable' : tooExpensive ? 'Too expensive' : 'Select'}
+                          {!selectedTarget ? 'Pick out first' : isCurrent ? 'Current' : player.locked ? 'Unavailable' : teamFull ? 'Team limit' : tooExpensive ? 'Too expensive' : 'Select'}
                         </button>
                       </td>
                     </tr>

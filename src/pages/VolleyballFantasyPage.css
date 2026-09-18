@@ -122,6 +122,53 @@
 .vb-bench h2 { margin: 0 0 8px; color: #37003c; font-size: 12px; }
 .vb-bench > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
 
+/* Chips + transfers (Team tab) and the chip guide (More tab). */
+.vb-line-warning { margin-bottom: 10px; padding: 9px 12px; border: 1px solid #f1c46b; border-radius: 6px; color: #7a5200; background: #fff5dc; font-size: 11px; font-weight: 700; line-height: 1.7; }
+.vb-picker-empty { margin: 0; padding: 22px 17px; color: #837686; font-size: 12px; line-height: 1.7; text-align: center; }
+.vb-chip-banner { margin-bottom: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; border-radius: 6px; color: #fff; background: linear-gradient(115deg, #37003c, #6d0b73); }
+.vb-chip-banner > span { font-size: 24px; }
+.vb-chip-banner strong, .vb-chip-banner small { display: block; }
+.vb-chip-banner strong { font-size: 12px; }
+.vb-chip-banner small { color: #00ff87; font-size: 9px; font-weight: 800; }
+
+/* Compact chips row: five small tiles instead of five cards; the full
+   explanation opens in a bottom sheet (and lives in More). */
+.vb-chips-bar { margin: 12px 0; padding: 10px 12px; border: 1px solid #e5e0e6; border-radius: 4px; background: #fff; color: #37003c; }
+.vb-chips-head { margin-bottom: 8px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.vb-chips-head strong { font-size: 12px; }
+.vb-chips-head small { color: #837686; font-size: 9px; }
+.vb-chips-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.vb-chip-tile { position: relative; padding: 7px 2px 5px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 1px solid #e5e0e6; border-radius: 8px; color: #37003c; background: #faf8fb; font: inherit; cursor: pointer; }
+.vb-chip-tile span { font-size: 20px; line-height: 1; }
+.vb-chip-tile small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; font-weight: 800; }
+.vb-chip-tile.active { border-color: #00c86f; background: #e7fff5; }
+.vb-chip-tile.active i { position: absolute; top: -5px; inset-inline-end: -4px; width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #00b86a; font-size: 9px; font-style: normal; font-weight: 900; }
+.vb-chip-tile.used, .vb-chip-tile.unavailable, .vb-chip-tile.blocked { opacity: .5; }
+.vb-transfers-line { margin: 8px 0 0; color: #6f6277; font-size: 10px; line-height: 1.5; }
+.vb-transfers-line b { color: #37003c; }
+.vb-transfers-line b.minus { color: #e90052; }
+.vb-chip-sheet { padding: 12px 17px 6px; color: #37003c; }
+.vb-chip-sheet em { color: #837686; font-size: 11px; font-style: normal; font-weight: 800; }
+.vb-chip-sheet p { margin: 8px 0 0; font-size: 12px; line-height: 1.8; }
+.vb-chip-action { width: 100%; min-height: 44px; margin-top: 14px; border: 0; border-radius: 999px; color: #fff; background: #37003c; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+.vb-chip-action.secondary { color: #37003c; background: #f0ecf2; }
+.vb-chip-target { margin-top: 12px; display: block; color: #6f6277; font-size: 11px; font-weight: 800; }
+.vb-chip-target select { width: 100%; margin-top: 4px; min-height: 40px; border: 1px solid #d6cdd9; border-radius: 8px; padding: 0 8px; color: #37003c; background: #fff; font: inherit; font-size: 12px; }
+.vb-chip-action:disabled { color: #9a8fa0; background: #f0ecf2; cursor: default; }
+.vb-chip-example { padding: 7px 9px; border-radius: 4px; background: #f3eff4; color: #37003c !important; }
+
+.vb-chip-guide { margin-bottom: 12px; padding: 12px 14px; border: 1px solid #e5e0e6; border-radius: 4px; background: #fff; color: #37003c; }
+.vb-chip-guide h2 { margin: 0 0 4px; font-size: 13px; }
+.vb-chip-guide h3 { margin: 12px 0 6px; font-size: 12px; }
+.vb-chip-guide-intro { margin: 0 0 10px; color: #837686; font-size: 10px; }
+.vb-chip-guide article { padding: 10px 0; border-top: 1px solid #eee9ef; }
+.vb-chip-guide header { display: flex; align-items: center; gap: 8px; }
+.vb-chip-guide header span { font-size: 20px; }
+.vb-chip-guide header strong { font-size: 12px; }
+.vb-chip-guide header em { color: #837686; font-size: 10px; font-style: normal; font-weight: 700; }
+.vb-chip-guide article p { margin: 6px 0 0; font-size: 11px; line-height: 1.7; }
+.vb-chip-guide ul { margin: 0; padding-inline-start: 18px; font-size: 11px; line-height: 1.8; }
+
 .vb-team-buttons { display: flex; gap: 8px; }
 .vb-team-buttons button { flex: 1; min-height: 42px; border: 1px solid #37003c; border-radius: 999px; color: #37003c; background: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
 .vb-team-buttons button:last-child { color: #fff; background: #37003c; }
