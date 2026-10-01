@@ -1846,7 +1846,13 @@ export default function TeamPage({ onOpenStandings, sport, onSwitchSport }) {
     Number(draftTeam.wildcards?.wildcard) === Number(gwState.gw);
   const freeHitActive =
     Number(draftTeam.wildcards?.freeHit) === Number(gwState.gw);
-  const unlimitedTransfers = wildcardActive || freeHitActive;
+  // Before this account has ever been scored for a gameweek (no `points`
+  // entries yet — true for a brand new squad, and for a new member who
+  // joins mid-season until their own first finalize), squad edits are
+  // unlimited and free: the host hasn't locked anything for them yet, so
+  // there is nothing to "transfer" away from.
+  const hasPlayedAnyGW = Object.keys(points || {}).length > 0;
+  const unlimitedTransfers = wildcardActive || freeHitActive || !hasPlayedAnyGW;
 
   const ownershipMap = useMemo(
     () =>
@@ -2013,19 +2019,15 @@ export default function TeamPage({ onOpenStandings, sport, onSwitchSport }) {
       next.viceCaptainId = null;
     }
 
-    const replacingExistingPlayer =
-      Boolean(currentId) &&
-      String(currentId) !== String(player.id) &&
-      isComplete;
-
-    if (replacingExistingPlayer) {
-      const charged = applyTransferToTeam(
-        next,
-        Number(gwState.gw) || 1
-      );
-
-      next.transferState = charged.transferState;
-    }
+    // Recomputed from scratch against the squad at this gameweek's start,
+    // not incremented per click — so filling an empty slot never counts,
+    // and swapping a pick back to what it already was at gw-start (an
+    // undo) drops that slot's transfer again instead of double-charging it.
+    next.transferState = applyTransferToTeam(
+      next,
+      Number(gwState.gw) || 1,
+      unlimitedTransfers
+    ).transferState;
     setDraftTeam(next);
     setPendingTransfers((current) => [...current, {
       outId: currentId || null,
@@ -2927,7 +2929,7 @@ function FullTransferPage({
                 </div>
               ))}
             </div>
-            <p>{Math.min(pendingTransfers.length, transferState.freeTransfersAtStart)} free transfer{pendingTransfers.length === 1 ? '' : 's'} used · Bank £{fmt(bank)}m</p>
+            <p>{Math.min(transferState.transfersMade, transferState.freeTransfersAtStart)} free transfer{transferState.transfersMade === 1 ? '' : 's'} used · Bank £{fmt(bank)}m</p>
             <div className="fpl-transfer-confirm-actions">
               <button type="button" className="fpl-secondary" onClick={onCancelTransfers}>Cancel</button>
               <button type="button" className="fpl-primary" onClick={onConfirmTransfers} disabled={locked}>Confirm transfers</button>
@@ -3808,26 +3810,36 @@ function syncTeamForGameweek(inputTeam, targetGw) {
   return team;
 }
 
-function applyTransferToTeam(team, gw) {
+// Recomputes the live transfer state for this gameweek from scratch by
+// comparing the squad as it now stands to the squad snapshotted at the
+// start of the gameweek (`gwStartTeam`), rather than charging per click.
+// This makes an undo genuinely free: buying A in for X, then changing your
+// mind and picking X again before the gameweek locks, leaves that slot
+// matching gw-start again, so it drops back out of the count — it does not
+// double-charge the two clicks it took to get there. Only slots that differ
+// from gw-start count at all, so filling a still-empty slot (first-ever
+// squad build) is never a transfer in the first place.
+function applyTransferToTeam(team, gw, unlimitedOverride = false) {
   const currentGw = Number(gw) || 1;
   const ts = normalizeTransferState(team, currentGw);
   const wildcardActive = Number(team.wildcards?.wildcard) === currentGw;
   const freeHitActive = Number(team.wildcards?.freeHit) === currentGw;
-  const unlimited = wildcardActive || freeHitActive;
+  const unlimited = wildcardActive || freeHitActive || unlimitedOverride;
 
-  let extraCost = 0;
-  let freeTransfers = ts.freeTransfers;
+  const startSquad = ts.gwStartTeam || makeSquadSnapshot(team);
+  const startIds = [...(startSquad.starters || []), ...(startSquad.bench || [])];
+  const currentIds = [...team.starters, ...team.bench];
+  const transfersMade = startIds.reduce((count, startId, i) => {
+    const currentId = currentIds[i];
+    return startId && currentId && String(startId) !== String(currentId) ? count + 1 : count;
+  }, 0);
 
-  if (!unlimited) {
-    if (freeTransfers > 0) {
-      freeTransfers -= 1;
-    } else {
-      extraCost = TRANSFER_HIT_POINTS;
-    }
-  }
-
-  const transferCost = unlimited ? 0 : ts.transferCost + extraCost;
-  const transfersMade = ts.transfersMade + 1;
+  const freeTransfers = unlimited
+    ? ts.freeTransfersAtStart
+    : Math.max(0, ts.freeTransfersAtStart - transfersMade);
+  const transferCost = unlimited
+    ? 0
+    : Math.max(0, transfersMade - ts.freeTransfersAtStart) * TRANSFER_HIT_POINTS;
 
   const nextState = {
     ...ts,
@@ -3848,11 +3860,7 @@ function applyTransferToTeam(team, gw) {
     },
   };
 
-  return {
-    transferState: nextState,
-    extraCost,
-    transferCost,
-  };
+  return { transferState: nextState, transferCost };
 }
 
 async function saveTeamThroughContext(app, nextTeam) {
