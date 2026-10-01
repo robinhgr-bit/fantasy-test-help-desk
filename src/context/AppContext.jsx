@@ -1,17 +1,22 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import {
   sbGetPlayers, sbGetState, sbGetUsers, sbGetStats, sbGetAccount, sbCreateAccount,
-  sbUpdateAccountField, sbGetSettings,
+  sbUpdateAccountField, sbGetSettings, sbGetHostGroup,
 } from '../lib/db';
 import { defaultTeam, migrateTeam, hashPassword, sanitizeTeamAgainstPlayers } from '../lib/scoring';
 
 const AppContext = createContext(null);
 const SESSION_KEY = 'ffl:session';
-const HOST_PASSWORD = '874569';
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState('__qa_preview__');
-  const [isHost, setIsHost] = useState(false);
+  // Host access is now a real account relationship (host_accounts table),
+  // not a shared password anyone could type in. `hostGroup` is the host
+  // account the current user is linked under (null = no Host access at
+  // all); `isHost` is just its truthiness, kept as its own value so nothing
+  // consuming `isHost` elsewhere has to change.
+  const [hostGroup, setHostGroup] = useState(null);
+  const isHost = !!hostGroup;
   const [players, setPlayers] = useState([]);
   const [gwState, setGwState] = useState({ gw: 1, locked: false });
   const [users, setUsers] = useState([]);
@@ -85,6 +90,18 @@ export function AppProvider({ children }) {
     if (user) loadMyTeam(user);
   }, [user, loadMyTeam]);
 
+  // Host access is looked up fresh from the database every time the logged-in
+  // account changes (login, logout, session restore on refresh) — it is never
+  // read from localStorage or any other client-only state, so it can't be
+  // forged by editing frontend state. No user means no Host access.
+  useEffect(() => {
+    let alive = true;
+    if (!user) { setHostGroup(null); return; }
+    sbGetHostGroup(user).then((group) => { if (alive) setHostGroup(group); })
+      .catch((e) => { console.error('host group lookup failed', e); if (alive) setHostGroup(null); });
+    return () => { alive = false; };
+  }, [user]);
+
   // If the host deletes a player who's sitting in this user's squad, clear
   // that dangling reference and persist the fix — same reasoning as the
   // HTML app: a slot pointing at a deleted player crashed the captain
@@ -120,13 +137,8 @@ export function AppProvider({ children }) {
 
   const logout = useCallback(() => {
     setUser(null);
-    setIsHost(false);
+    setHostGroup(null);
     try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
-  }, []);
-
-  const tryHostLogin = useCallback((password) => {
-    if (password === HOST_PASSWORD) { setIsHost(true); return true; }
-    return false;
   }, []);
 
   const refresh = useCallback(async () => {
@@ -136,9 +148,9 @@ export function AppProvider({ children }) {
   }, [loadShared, loadMyTeam, user]);
 
   const value = {
-    user, isHost, players, gwState, users, stats, team, points, settings, ready, bootError,
+    user, isHost, hostGroup, players, gwState, users, stats, team, points, settings, ready, bootError,
     setPlayers, setGwState, setUsers, setStats, setTeam, setPoints, setSettings,
-    saveTeam, signup, login, logout, tryHostLogin, refresh, setIsHost,
+    saveTeam, signup, login, logout, refresh,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

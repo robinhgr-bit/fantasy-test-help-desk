@@ -4,7 +4,7 @@ import { useUI } from '../context/UIContext';
 import { sbGetAccount, sbGetVolleyballAccounts, sbGetVolleyballMatches, sbGetVolleyballPlayers, sbGetVolleyballState, sbGetVolleyballStats, sbUpdateAccountField } from '../lib/db';
 import { activeVolleyballChip, calcVolleyballTeamPoints, isVolleyballChipActive, defaultVolleyballTeam, getVolleyballTeamBreakdown, normalizeVolleyballTeam, VB_CHIP_RULES, VB_CHIPS, VB_LINES, VB_SQUAD_RULES, VOLLEYBALL_RULES, volleyballLine, volleyballLineProblems, volleyballRuleWorthText, volleyballSlotLine } from '../lib/volleyballScoring';
 import { getUpcomingFixturesForTeam, matchDisplayStatus } from '../lib/scheduleGenerator';
-import { MAX_PER_TEAM, teamKeyOf, teamLimitProblems, wouldBreakTeamLimit } from '../lib/squadRules';
+import { groupPlayersByTeam, MAX_PER_TEAM, teamKeyOf, teamLimitProblems, wouldBreakTeamLimit } from '../lib/squadRules';
 import { BrandGlyph } from '../components/Brand';
 import FantasyBrandHeader from '../components/FantasyBrandHeader';
 import NewsPage from './NewsPage';
@@ -390,10 +390,16 @@ export default function VolleyballFantasyPage({ onSwitchSport }) {
     {picker && (() => {
       const need = picker.group === 'starters' ? volleyballSlotLine(picker.index) : null;
       const options = need ? players.filter((player) => volleyballLine(player) === need) : players;
+      const groups = groupPlayersByTeam(options);
       return <div className="vb-picker" onClick={() => setPicker(null)}><div onClick={(event) => event.stopPropagation()}>
         <header><h2>{need ? `Choose ${VB_LINES[need].label.toLowerCase()} player · ${VB_LINES[need].arLabel}` : 'Choose bench player'}</h2><button onClick={() => setPicker(null)}>×</button></header>
         {!options.length && <p className="vb-picker-empty">مفيش لاعبين {need ? VB_LINES[need].arLabel : ''} متاحين — الهوست لسه ماحدّدش صفوف اللاعبين.</p>}
-        {options.map((player) => { const next = getUpcomingFixturesForTeam(player.team_name, matches, 1)[0]; const line = volleyballLine(player); const teamFull = wouldBreakTeamLimit(player, selectedIds, byId, MAX_PER_TEAM.volleyball); return <button key={player.id} disabled={selectedIds.includes(player.id)||spent+player.price>budgetLimit||teamFull} onClick={() => choosePlayer(player)}><PlayerPhoto player={player}/><strong>{player.name}<small>{player.team_name || player.country || 'Fagalla'}{line ? ` · ${VB_LINES[line].arLabel}` : ''}{teamFull ? ' · وصلت الحد من الفريق ده' : ''}{next ? ` · Next: ${next.venue} vs ${next.opponent}` : ''}</small></strong><b>${player.price}m</b></button>; })}
+        {groups.map((group) => (
+          <div key={group.key || 'unassigned'} className="vb-picker-group">
+            <h3 className="vb-picker-group-head">{group.team}</h3>
+            {group.players.map((player) => { const next = getUpcomingFixturesForTeam(player.team_name, matches, 1)[0]; const line = volleyballLine(player); const teamFull = wouldBreakTeamLimit(player, selectedIds, byId, MAX_PER_TEAM.volleyball); return <button key={player.id} disabled={selectedIds.includes(player.id)||spent+player.price>budgetLimit||teamFull} onClick={() => choosePlayer(player)}><PlayerPhoto player={player}/><strong>{player.name}<small>{player.team_name || player.country || 'Fagalla'}{line ? ` · ${VB_LINES[line].arLabel}` : ''}{teamFull ? ' · وصلت الحد من الفريق ده' : ''}{next ? ` · Next: ${next.venue} vs ${next.opponent}` : ''}</small></strong><b>${player.price}m</b></button>; })}
+          </div>
+        ))}
       </div></div>;
     })()}
 

@@ -32,3 +32,26 @@ export function teamLimitProblems(ids, index, limit) {
   });
   return Object.values(counts).filter((entry) => entry.count > limit);
 }
+
+// Buckets players under their real team (players are never mixed between
+// teams), each team's players sorted by name, teams sorted alphabetically —
+// with players who have no team yet pushed into a trailing "unassigned"
+// group instead of being dropped. Used everywhere a player list needs to
+// read as "Team A: ..., Team B: ..." rather than one flat alphabetical list.
+export function groupPlayersByTeam(players, unassignedLabel = 'بدون فريق') {
+  const byTeam = new Map();
+  (players || []).forEach((player) => {
+    const key = teamKeyOf(player);
+    const label = key ? (player.team_name ?? player.teamName) : unassignedLabel;
+    if (!byTeam.has(key)) byTeam.set(key, { key, team: label, players: [] });
+    byTeam.get(key).players.push(player);
+  });
+  const groups = [...byTeam.values()];
+  groups.forEach((group) => group.players.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar')));
+  groups.sort((a, b) => {
+    if (!a.key && b.key) return 1;   // unassigned last
+    if (a.key && !b.key) return -1;
+    return String(a.team).localeCompare(String(b.team), 'ar');
+  });
+  return groups;
+}

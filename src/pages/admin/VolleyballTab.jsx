@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUI } from '../../context/UIContext';
 import { calcVolleyballPlayerPoints, calcVolleyballTeamPoints, rollVolleyballTeamToNextGw, VB_LINES, VOLLEYBALL_APPEARANCE_POINTS, VOLLEYBALL_RULES, volleyballLine, volleyballRuleWorthText } from '../../lib/volleyballScoring';
 import { getTeamMatchOptions, guessCurrentMatchId } from '../../lib/scheduleGenerator';
+import { groupPlayersByTeam } from '../../lib/squadRules';
 import {
   sbDeleteVolleyballPlayer, sbGetAllVolleyballStats, sbGetTeams, sbGetVolleyballAccounts, sbGetVolleyballMatches,
   sbGetVolleyballPlayers, sbGetVolleyballState, sbGetVolleyballStats, sbSaveVolleyballPlayer, sbSetVolleyballState,
@@ -115,6 +116,9 @@ export default function VolleyballTab() {
   };
 
   const filtered = players.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()));
+  // Grouped once and reused by both the roster list and the stats-entry list
+  // below, so players from different teams never render interleaved.
+  const groupedFiltered = useMemo(() => groupPlayersByTeam(filtered), [filtered]);
   const gwKeys = Object.keys(allStats).filter((k) => /^gw\d+$/.test(k)).sort((a, b) => parseInt(a.slice(2)) - parseInt(b.slice(2)));
 
   return <div className="volleyAdmin">
@@ -154,17 +158,22 @@ export default function VolleyballTab() {
         <input placeholder="دوّر باسم لاعب..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="plist" style={{ marginTop: 10 }}>
           {filtered.length === 0 && <p className="hint">لسه معملتش لاعبين</p>}
-          {filtered.map((player) => (
-            <div className="volleyAdminPlayer" key={player.id}>
-              <i style={{ background: player.color }} />
-              <strong>{player.name}<small>{player.team_name || 'بدون فريق'} · {player.price}m</small></strong>
-              <select className="volleyLineSelect" value={volleyballLine(player) || ''} onChange={(e) => setLine(player, e.target.value)} title="صف اللاعب">
-                <option value="" disabled>حدّد الصف</option>
-                <option value="front">{VB_LINES.front.arLabel}</option>
-                <option value="back">{VB_LINES.back.arLabel}</option>
-              </select>
-              <button className="btn small ghost" onClick={() => setForm(player)}>تعديل</button>
-              <button className="btn small danger" onClick={() => remove(player)}>حذف</button>
+          {groupedFiltered.map((group) => (
+            <div className="volleyTeamGroup" key={group.key || 'unassigned'}>
+              <h4 className="volleyTeamGroupHead">{group.team} <span>({group.players.length})</span></h4>
+              {group.players.map((player) => (
+                <div className="volleyAdminPlayer" key={player.id}>
+                  <i style={{ background: player.color }} />
+                  <strong>{player.name}<small>{player.team_name || 'بدون فريق'} · {player.price}m</small></strong>
+                  <select className="volleyLineSelect" value={volleyballLine(player) || ''} onChange={(e) => setLine(player, e.target.value)} title="صف اللاعب">
+                    <option value="" disabled>حدّد الصف</option>
+                    <option value="front">{VB_LINES.front.arLabel}</option>
+                    <option value="back">{VB_LINES.back.arLabel}</option>
+                  </select>
+                  <button className="btn small ghost" onClick={() => setForm(player)}>تعديل</button>
+                  <button className="btn small danger" onClick={() => remove(player)}>حذف</button>
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -202,13 +211,20 @@ export default function VolleyballTab() {
         <h3 className="disp" style={{ margin: '0 0 4px' }}>إحصائيات GW {state.gw}</h3>
         <p className="hint">دوس على أي لاعب عشان تسجّل أفعاله في الماتش (نقط، بلوكات، كروت...) وبتتحسب النقط أوتوماتيك.</p>
         <input placeholder="دوّر باسم لاعب..." style={{ marginTop: 10 }} value={search} onChange={(e) => setSearch(e.target.value)} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-          {filtered.map((player) => (
-            <div className="prow" key={player.id}>
-              <div className="info"><span>{player.name}</span></div>
-              <div className="row" style={{ gap: 10, alignItems: 'center' }}>
-                <span className="hint">نقط GW {state.gw}: <b className="num" style={{ color: 'var(--gold)' }}>{calcVolleyballPlayerPoints(stats[player.id])}</b></span>
-                <button className="btn small ghost" onClick={() => setStatModal(player)}>تفاصيل</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 10 }}>
+          {groupedFiltered.map((group) => (
+            <div key={group.key || 'unassigned'}>
+              <h4 className="volleyTeamGroupHead">{group.team} <span>({group.players.length})</span></h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                {group.players.map((player) => (
+                  <div className="prow" key={player.id}>
+                    <div className="info"><span>{player.name}</span></div>
+                    <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+                      <span className="hint">نقط GW {state.gw}: <b className="num" style={{ color: 'var(--gold)' }}>{calcVolleyballPlayerPoints(stats[player.id])}</b></span>
+                      <button className="btn small ghost" onClick={() => setStatModal(player)}>تفاصيل</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -219,7 +235,7 @@ export default function VolleyballTab() {
         <div className="card">
           <h3 className="disp" style={{ margin: '0 0 4px' }}>سجل نقط اللاعبين</h3>
           <p className="hint">نقط كل لاعب في كل جولة. الأرقام دي محفوظة ومش بتتمسح لما تصفّر الجولة الجديدة.</p>
-          <div style={{ overflowX: 'auto', marginTop: 10 }}>
+          <div className="adminHScroll" style={{ marginTop: 10 }}>
             <table className="stTable" style={{ minWidth: 180 + gwKeys.length * 60 }}>
               <thead>
                 <tr>

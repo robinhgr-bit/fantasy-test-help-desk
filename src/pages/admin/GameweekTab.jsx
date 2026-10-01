@@ -194,7 +194,7 @@ export default function GameweekTab() {
         <div className="card">
           <h3 className="disp" style={{ margin: '0 0 4px' }}>سجل نقط اللاعبين</h3>
           <p className="hint">نقط كل لاعب في كل جيم ويك. الأرقام دي محفوظة ومش بتتمسح لما تصفّر الجيم ويك الجديد.</p>
-          <div style={{ overflowX: 'auto', marginTop: 10 }}>
+          <div className="adminHScroll" style={{ marginTop: 10 }}>
             <table className="stTable" style={{ minWidth: 180 + gwKeys.length * 60 }}>
               <thead>
                 <tr>

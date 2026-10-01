@@ -4,27 +4,15 @@ import { InstallAppButton } from '../components/InstallPWA';
 import { useNotifications } from '../hooks/useNotifications';
 import { Icon } from '../components/Brand';
 
-export default function SettingsPage({ onOpenAdmin }) {
-  const { user, isHost, logout, tryHostLogin, setIsHost, refresh } = useApp();
-  const { showToast, openModal } = useUI();
+export default function SettingsPage() {
+  const { user, isHost, logout, refresh } = useApp();
+  const { showToast } = useUI();
   const { permission, busy, enable } = useNotifications(user);
 
   const handleRefresh = async () => {
     showToast('بيتحدث...');
     await refresh();
     showToast('اتحدث', 'success');
-  };
-
-  const handleHost = async () => {
-    if (isHost) { setIsHost(false); showToast('خرجت من وضع الـ Host'); return; }
-    const pass = await openModal({ title: 'باسورد الـ Host', placeholder: 'اكتب الباسورد', type: 'password' });
-    if (pass === null || pass.trim() === '') return;
-    if (!tryHostLogin(pass)) {
-      showToast('باسورد غلط', 'error');
-      return;
-    }
-    showToast('تم فتح لوحة الهوست', 'success');
-    onOpenAdmin?.();
   };
 
   const handleNotifications = async () => {
@@ -74,15 +62,15 @@ export default function SettingsPage({ onOpenAdmin }) {
         </div>
       </div>
 
-      <div className="card">
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <b>وضع الـ Host</b>
-            <p className="hint" style={{ margin: '2px 0 0' }}>{isHost ? 'مفعّل دلوقتي' : 'لإدارة الجيم ويك واللاعبين'}</p>
-          </div>
-          <button className="btn ghost small" onClick={handleHost}>{isHost ? 'خروج' : 'دخول كـ Host'}</button>
+      {/* No "Enter as Host" button here anymore — Host access is granted per
+          account from the Host Dashboard's "صلاحية الهوست" panel, not by
+          typing a shared password. A linked account simply sees the "Host"
+          tab in the main navigation automatically. */}
+      {isHost && (
+        <div className="card">
+          <p className="hint" style={{ margin: 0 }}>الحساب ده ليه صلاحية Host — تقدر تدير من تبويب "Host" تحت.</p>
         </div>
-      </div>
+      )}
 
       <div className="card">
         <button className="btn danger" style={{ width: '100%' }} onClick={logout}>تسجيل خروج</button>

@@ -242,7 +242,7 @@ function Shell() {
       <div id="tabbody" className={immersiveMode ? 'fantasy-only-body' : ''}>
         {appMode === 'news' && <NewsPage />}
         {appMode === 'timetable' && <TimeTablePage sport={appMode === 'volleyball' ? 'volleyball' : 'football'} />}
-        {appMode === 'settings' && <SettingsPage onOpenAdmin={() => setAppMode('admin')} />}
+        {appMode === 'settings' && <SettingsPage />}
         {appMode === 'admin' && isHost && <AdminPage />}
         {appMode === 'football' && <TeamPage sport="football" />}
         {appMode === 'volleyball' && <VolleyballFantasyPage />}

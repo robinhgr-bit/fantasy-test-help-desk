@@ -1145,6 +1145,22 @@ const MAJOR_CSS = `
 .fpl-green { color:#087a45; }
 .fpl-red { color:#d90c4f; }
 
+/* Card view of the same player rows, swapped in for the table below 760px
+   (see the media query) so "Select" never sits behind a horizontal scroll. */
+.fpl-player-cards { display:none; }
+.fpl-player-card { padding:12px; border-bottom:1px solid #f0edf1; cursor:pointer; }
+.fpl-player-card:last-child { border-bottom:0; }
+.fpl-player-card.current { background:#fff8e8; }
+.fpl-player-card.unaffordable { opacity:.52; }
+.fpl-player-card .fpl-player-cell { min-width:0; }
+.fpl-player-card-stats { margin-top:10px; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.fpl-player-card-stats span { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 2px; border-radius:8px; background:#f7f5f8; }
+.fpl-player-card-stats b { color:#37003c; font-size:12px; font-weight:950; }
+.fpl-player-card-stats small { color:#7f7083; font-size:7px; text-transform:uppercase; font-weight:800; }
+.fpl-player-card-actions { margin-top:10px; display:flex; gap:8px; }
+.fpl-player-card-actions .fpl-info-btn { flex:1; }
+.fpl-player-card-actions .fpl-select-btn { flex:2; min-width:0; }
+
 .fpl-player-hero { margin-top:0; display:grid; grid-template-columns:180px 1fr; align-items:end; min-height:245px; }
 .fpl-player-visual { height:220px; padding:18px 14px 0 24px; display:flex; align-items:flex-end; justify-content:center; }
 .fpl-player-visual img { max-width:100%; max-height:100%; object-fit:contain; }
@@ -1197,6 +1213,8 @@ const MAJOR_CSS = `
   .fpl-major-summary > div:nth-child(2) { border-right:0; }
   .fpl-major-summary > div:nth-child(-n+2) { border-bottom:1px solid rgba(255,255,255,.13); }
   .fpl-filter-panel { grid-template-columns:1fr 1fr; }
+  .fpl-table-wrap { display:none; }
+  .fpl-player-cards { display:block; }
   .fpl-filter-panel input { grid-column:1/-1; }
   .fpl-player-hero { grid-template-columns:105px 1fr; min-height:205px; }
   .fpl-player-visual { height:175px; padding:12px 4px 0 12px; }
@@ -2012,6 +2030,10 @@ export default function TeamPage({ onOpenStandings, sport, onSwitchSport }) {
       index: picker.index,
     }]);
     setPicker(null);
+    // Selecting a player from the Player Details screen (transfer-select
+    // mode) must drop back to the Transfers page instead of leaving stale
+    // details open on the player that was just transferred out.
+    setDetails(null);
   }
 
   async function confirmTransfers() {
@@ -2995,6 +3017,53 @@ function FullTransferPage({
                 })}
               </tbody>
             </table>
+          </div>
+          {/* Mobile alternative to the table above: the table's "Select"
+              column sits after 18 stat columns, so on a phone it's only
+              reachable by scrolling the whole table horizontally — this
+              renders the same `rows` as cards instead, with Stats/Select
+              always visible without any horizontal scrolling. CSS toggles
+              which of the two is shown per viewport width; see
+              .fpl-table-wrap / .fpl-player-cards. */}
+          <div className="fpl-player-cards">
+            {rows.map(({player, agg}) => {
+              const isCurrent = String(player.id) === String(currentId);
+              const tooExpensive = selectedTarget && getPlayerPrice(player) > spendable;
+              const teamFull = Boolean(selectedTarget) && !isCurrent && wouldBreakTeamLimit(player, otherSquadIds, playerIndex, MAX_PER_TEAM.football);
+              const selectionDisabled = !selectedTarget || isCurrent || tooExpensive || teamFull || locked || player.locked;
+              const next = getUpcomingFixturesForTeam(getTeamName(player), matches, 1)[0];
+              return (
+                <article key={player.id} className={`fpl-player-card ${isCurrent ? 'current' : ''} ${tooExpensive ? 'unaffordable' : ''}`} onClick={() => onDetails(player)}>
+                  <div className="fpl-player-cell">
+                    <div className="fpl-mini-shirt"><PlayerImageOnly player={player} /></div>
+                    <div className="fpl-player-ident">
+                      <strong>{getPlayerName(player)} {isCurrent && <span className="fpl-current-tag">CURRENT</span>}</strong>
+                      <small>{getTeamName(player) || 'Team'} · {getPlayerPosition(player)}{next ? ` · Next: ${next.venue} vs ${next.opponent}` : ''}</small>
+                    </div>
+                  </div>
+                  <div className="fpl-player-card-stats">
+                    <span><b>£{fmt(getPlayerPrice(player))}m</b><small>Price</small></span>
+                    <span><b>{agg.points}</b><small>Total Pts</small></span>
+                    <span><b>{getPlayerGwPoints(stats, player.id, currentGw)}</b><small>GW Pts</small></span>
+                    <span><b className="fpl-green">{agg.form}</b><small>Form</small></span>
+                  </div>
+                  <div className="fpl-player-card-actions">
+                    <button type="button" className="fpl-info-btn" onClick={(e) => {e.stopPropagation(); onDetails(player);}}>Stats</button>
+                    <button
+                      type="button"
+                      className="fpl-select-btn"
+                      disabled={selectionDisabled}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!selectionDisabled) onSelect(player);
+                      }}
+                    >
+                      {!selectedTarget ? 'Pick out first' : isCurrent ? 'Current' : player.locked ? 'Unavailable' : teamFull ? 'Team limit' : tooExpensive ? 'Too expensive' : 'Select'}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
           {!rows.length && <div className="tf-empty-text" style={{margin:14}}>No players match these filters.</div>}
         </section>}

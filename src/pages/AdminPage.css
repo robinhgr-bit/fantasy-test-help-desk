@@ -94,6 +94,21 @@
 .matchStatsSummary .hint { margin: 0; }
 
 .matchStatsScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Shared wrapper for the admin "points history" tables (football + volleyball)
+   — wide, horizontally-scrollable tables nested inside the vertically
+   scrolling page. Without -webkit-overflow-scrolling:touch, iOS Safari can
+   get the drag gesture stuck mid-scroll on a nested overflow-x container
+   instead of handing it back to the page, which reads as "the page won't
+   scroll" even though nothing is actually locked. overscroll-behavior stops
+   the same container from chaining a scroll-to-the-edge into the page too. */
+.adminHScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+
+/* Team-grouped player lists (volleyball roster + stats entry) — a small
+   header per real team so players from different teams never render
+   interleaved in one flat list. */
+.volleyTeamGroup + .volleyTeamGroup { margin-top: 14px; }
+.volleyTeamGroupHead { margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); color: #37003c; font-size: 12px; font-weight: 900; }
+.volleyTeamGroupHead span { color: var(--muted); font-size: 10px; font-weight: 700; }
 .matchStatsTable { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 11px; }
 .matchStatsTable th, .matchStatsTable td { padding: 7px 6px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .matchStatsTable thead th { color: var(--muted); font-weight: 800; background: #f7f5f8; position: sticky; top: 0; }

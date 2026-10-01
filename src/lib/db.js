@@ -107,6 +107,29 @@ export async function sbResetAllPasswords(newHash) {
   });
 }
 
+// ---------------- host accounts (who can open the Host Dashboard) ----------------
+// One row per member account: { member_username, host_username }. A host is
+// "Host of itself" via a self-referencing row. member_username is the
+// primary key, so linking/relinking an account is a plain upsert (one row,
+// one host, no duplicates) and removing one row never touches any other
+// account's link — see supabase-host-accounts-upgrade.sql.
+export async function sbGetHostAccounts() {
+  return (await sbFetch('host_accounts?select=member_username,host_username&order=host_username.asc,member_username.asc')) || [];
+}
+// The host group a single account belongs to, or null if it has no Host
+// access at all — this is the actual authorization check (see AppContext).
+export async function sbGetHostGroup(username) {
+  if (!username) return null;
+  const rows = await sbFetch(`host_accounts?member_username=eq.${encodeURIComponent(username)}&select=host_username`);
+  return rows && rows[0] ? rows[0].host_username : null;
+}
+export async function sbSetHostAccount(memberUsername, hostUsername) {
+  await sbUpsert('host_accounts', [{ member_username: memberUsername, host_username: hostUsername }]);
+}
+export async function sbRemoveHostAccount(memberUsername) {
+  await sbFetch(`host_accounts?member_username=eq.${encodeURIComponent(memberUsername)}`, { method: 'DELETE' });
+}
+
 // ---------------- gameweek stats ----------------
 export async function sbGetStats() {
   const rows = await sbFetch('gw_stats?select=gw,data&order=gw.asc');
