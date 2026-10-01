@@ -1100,7 +1100,6 @@ const MAJOR_CSS = `
 
 .fpl-list-shell {
   margin-top:14px;
-  overflow:hidden;
   border:1px solid #dfd9e1;
   border-radius:14px;
   background:#fff;
@@ -1109,9 +1108,14 @@ const MAJOR_CSS = `
   padding:13px 16px;
   display:flex; align-items:center; justify-content:space-between; gap:12px;
   color:#fff; background:#37003c;
+  border-radius:13px 13px 0 0;
+  position:sticky; top:0; z-index:5;
 }
 .fpl-list-title strong { font-size:14px; }
 .fpl-list-title span { opacity:.72; font-size:9px; }
+.fpl-list-budget { flex:0 0 auto; display:flex; gap:10px; text-align:center; }
+.fpl-list-budget b { display:block; color:#00ff87; font-size:13px; }
+.fpl-list-budget small { display:block; opacity:.72; font-size:7px; text-transform:uppercase; }
 .fpl-table-wrap { overflow:auto; }
 .fpl-player-table { width:100%; min-width:1120px; border-collapse:collapse; }
 .fpl-player-table th {
@@ -1153,7 +1157,7 @@ const MAJOR_CSS = `
 .fpl-player-card.current { background:#fff8e8; }
 .fpl-player-card.unaffordable { opacity:.52; }
 .fpl-player-card .fpl-player-cell { min-width:0; }
-.fpl-player-card-stats { margin-top:10px; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.fpl-player-card-stats { margin-top:10px; display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
 .fpl-player-card-stats span { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 2px; border-radius:8px; background:#f7f5f8; }
 .fpl-player-card-stats b { color:#37003c; font-size:12px; font-weight:950; }
 .fpl-player-card-stats small { color:#7f7083; font-size:7px; text-transform:uppercase; font-weight:800; }
@@ -2961,8 +2965,16 @@ function FullTransferPage({
 
         {selectedTarget && <section className="fpl-list-shell">
           <div className="fpl-list-title">
-            <strong>Player selection</strong>
-            <span>{rows.length} players · {selectedTarget ? 'select a replacement' : 'browse stats, then choose player out above'}</span>
+            <div>
+              <strong>Player selection</strong>
+              <span>{rows.length} players · select a replacement</span>
+            </div>
+            {/* Stays visible (sticky) while scrolling the list below, so the
+                budget never disappears off-screen while actually buying. */}
+            <div className="fpl-list-budget">
+              <span><b>£{fmt(spendable)}m</b><small>Available</small></span>
+              <span><b>£{fmt(STARTING_BUDGET - bank)}m</b><small>Spent</small></span>
+            </div>
           </div>
           <div className="fpl-table-wrap">
             <table className="fpl-player-table">
@@ -3043,6 +3055,7 @@ function FullTransferPage({
                   </div>
                   <div className="fpl-player-card-stats">
                     <span><b>£{fmt(getPlayerPrice(player))}m</b><small>Price</small></span>
+                    <span><b>{getOwnershipForPlayer(ownershipMap, player) ?? 0}%</b><small>Sel %</small></span>
                     <span><b>{agg.points}</b><small>Total Pts</small></span>
                     <span><b>{getPlayerGwPoints(stats, player.id, currentGw)}</b><small>GW Pts</small></span>
                     <span><b className="fpl-green">{agg.form}</b><small>Form</small></span>
