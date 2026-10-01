@@ -9,7 +9,7 @@ const AppContext = createContext(null);
 const SESSION_KEY = 'ffl:session';
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState('__qa_preview__');
+  const [user, setUser] = useState(null);
   // Host access is now a real account relationship (host_accounts table),
   // not a shared password anyone could type in. `hostGroup` is the host
   // account the current user is linked under (null = no Host access at

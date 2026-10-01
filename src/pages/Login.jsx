@@ -62,7 +62,7 @@ export default function Login() {
           </button>
         </form>
       </div>
-      <p style={{ color: '#8fae9c', fontSize: 12 }}>لو انت الهوست، سجل دخول أو اعمل حساب عادي وبعدين دوس على "دخول كـ Host" فوق</p>
+      <p style={{ color: '#8fae9c', fontSize: 12 }}>لو حسابك متربط بصلاحية Host، هتلاقي تبويب "Host" ظاهر تلقائي بعد الدخول</p>
     </div>
   );
 }
